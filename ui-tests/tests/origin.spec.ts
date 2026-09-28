@@ -131,7 +131,8 @@ test('ACC-ORIGIN-17 marks file text a script moved, around its text in the file'
     .poll(() =>
       inFrame<string>(
         page,
-        'return doc.getElementById("moved").parentElement.id;'
+        // The frame is blank for a moment while it loads again after Trust.
+        'return doc.getElementById("moved")?.parentElement?.id ?? null;'
       )
     )
     .toBe('box');

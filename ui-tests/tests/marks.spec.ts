@@ -129,9 +129,10 @@ test('ACC-STORE-29 marks a selection across two paragraphs', async ({
       `and <!-- mark:(${UUID}) note colour=yellow -->pears\\.</p>\\n<p>The second paragraph mentions oranges<!-- /mark:\\1 --> and`
     )
   );
-  const pieces = (await painted(page, 'jp-ahv-yellow')).join('');
-  expect(pieces).toContain('pears.');
-  expect(pieces).toContain('The second paragraph mentions oranges');
+  // The paint follows the write by a frame, so it is waited for.
+  const pieces = async () => (await painted(page, 'jp-ahv-yellow')).join('');
+  await expect.poll(pieces).toContain('pears.');
+  expect(await pieces()).toContain('The second paragraph mentions oranges');
 });
 
 test('ACC-STORE-30 renders a marked file as the plain one in the built-in viewer', async ({
@@ -231,7 +232,9 @@ test('ACC-MARK-37 marks a passage in each of the six colours', async ({
     expect(text).toMatch(
       new RegExp(`colour=${colour} -->${words[index]}<!-- /mark:`)
     );
-    expect(await painted(page, `jp-ahv-${colour}`)).toEqual([words[index]]);
+    await expect
+      .poll(() => painted(page, `jp-ahv-${colour}`))
+      .toEqual([words[index]]);
   }
 });
 

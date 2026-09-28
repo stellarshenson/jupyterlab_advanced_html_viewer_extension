@@ -388,7 +388,7 @@ test('DEF-PANEL-5 keeps the note field while a script changes the page', async (
     .poll(() =>
       inFrame<number>(
         page,
-        "return Number(doc.getElementById('counter').textContent);"
+        "return Number(doc.getElementById('counter')?.textContent ?? 0);"
       )
     )
     .toBeGreaterThanOrEqual(5);

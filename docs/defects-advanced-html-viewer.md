@@ -80,3 +80,15 @@ The list of marks and their notes beside the page
   - log: 2026-09-28T16:09:40Z @kj closed: fixed: position counts in the page-change comparison only while the minimap shows ticks; src/notes.ts
   - log: 2026-09-28T16:09:55Z @kj edited repro added "trust a page whose script appends a line above the marked paragraph every 300 ms, type in a note field"; test-tags added "FUNCTIONAL"
 
+## Functional tests `TEST`
+
+Defects of the Galata suite itself
+
+- [x] `DEF-TEST-6` **Galata reads the frame before it settles** - MEDIUM; CI run 36466759448 on d82c0b4 failed 2 of 60: ACC-STORE-29 read no paint after marking; ACC-ORIGIN-17 threw TypeError reading parentElement of null after Trust
+  - evidence: marks.spec ACC-STORE-29 and ACC-MARK-37 poll the paint; origin.spec ACC-ORIGIN-17 and panel.spec DEF-PANEL-5 frame reads are null-safe; changed tests 12 of 12 over --repeat-each 3; Galata 60 of 60 locally on build 0.1.8
+  - repro: slow runner: CI Build Integration tests; locally 60 of 60 pass
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-09-28T18:48:40Z @kj painted() read once after the marker reached disk, while the paint runs one animation frame after the write returns; a poll callback threw on the blank frame document during the reload after Trust, and a throwing expect.poll callback ends the poll
+  - log: 2026-09-28T18:48:40Z @kj added
+  - log: 2026-09-28T18:53:27Z @kj closed: fixed
+
