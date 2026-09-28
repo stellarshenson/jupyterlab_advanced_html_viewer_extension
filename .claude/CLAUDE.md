@@ -42,8 +42,9 @@ A comment on file content is stored in the file.
 `data-jp-ahv` numbering every start tag (`src/source.ts`); parse5 reads the same text with the file
 offset of every character. After load, a text node is file text when its element's number occurs
 once in the page and its characters continue that element's file text (`src/origin.ts`). Text a
-script adds or changes, and anything inside an iframe of the page, takes no comment. Marks are
-painted through the CSS Custom Highlight API (`src/paint.ts`), so the page's DOM is never touched.
+script adds or changes, and anything an iframe, object or embed of the page shows, takes no
+comment. Marks are painted through the CSS Custom Highlight API (`src/paint.ts`), so the page's
+DOM is never touched.
 
 **Architecture**:
 

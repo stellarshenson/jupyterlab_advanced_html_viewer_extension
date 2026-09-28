@@ -106,12 +106,17 @@ Telling text written in the file from content the page produces while it runs; o
   - test-tags: FUNCTIONAL
   - log: 2026-09-28T13:03:53Z @kj added
   - log: 2026-09-28T13:54:26Z @kj closed: verified
-- [x] `ACC-ORIGIN-15` **Script-added text takes no comment** - CRITICAL; for a selection touching text a script of the trusted page added, the Mark submenu is hidden and Add Comment is disabled and reads Add Comment (text not in the file)
-  - evidence: Galata 'ACC-ORIGIN-15 refuses a comment on text a script added' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-15 refuses text a script added' in src/__tests__/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
-  - test: Galata origin.spec 'ACC-ORIGIN-15': trusted fixture appends a paragraph by script; select it, assert Mark hidden and the disabled label
+- [x] `ACC-ORIGIN-15` **Script-added text takes no comment** - CRITICAL; for a selection touching text a script of the trusted page added, the context menu shows neither the Mark submenu nor Add Comment
+  - evidence: Galata 'ACC-ORIGIN-15 refuses a comment on text a script added' in ui-tests/tests/origin.spec.ts, red on build 0.1.7 before the menu change; jest 'ACC-ORIGIN-15 refuses text a script added' in src/__tests__/origin.spec.ts; green on build 0.1.8: Galata 60 of 60, jest 64 of 64, pytest 8 of 8
+  - test: Galata origin.spec 'ACC-ORIGIN-15': trusted fixture appends a paragraph by script; select it, assert the viewer holds a refused selection and Mark and Add Comment are hidden
   - test-tags: UNIT, FUNCTIONAL
   - log: 2026-09-28T13:03:53Z @kj added
   - log: 2026-09-28T13:54:26Z @kj closed: verified
+  - log: 2026-09-28T18:14:27Z @kj reopened: requirement changed: the Star Colonel decided a refused selection shows neither Mark nor Add Comment; evidence retired: Galata 'ACC-ORIGIN-15 refuses a comment on text a script added' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-15 refuses text a script added' in src/__tests__/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - log: 2026-09-28T18:14:27Z @kj amended text "for a selection touching text a script of the trusted page added, the Mark submenu is hidden and Add Comment is disabled and reads Add Comment (text not in the file)" -> "CRITICAL; for a selection touching text a script of the trusted page added, the context menu shows neither the Mark submenu nor Add Comment"
+  - log: 2026-09-28T18:14:27Z @kj edited test "Galata origin.spec 'ACC-ORIGIN-15': trusted fixture appends a paragraph by script; select it, assert Mark hidden and the disabled label" -> "Galata origin.spec 'ACC-ORIGIN-15': trusted fixture appends a paragraph by script; select it, assert the viewer holds a refused selection and Mark and Add Comment are hidden"
+  - log: 2026-09-28T18:28:22Z @kj closed: verified
+  - log: 2026-09-28T18:28:35Z @kj edited evidence "Galata 'ACC-ORIGIN-15 refuses a comment on text a script added' in ui-tests/tests/origin.spec.ts, which failed 6 times on build 0.1.7 before the menu change; jest 'ACC-ORIGIN-15 refuses text a script added' in src/__tests__/origin.spec.ts; green on build 0.1.8: Galata 60 of 60, jest 64 of 64, pytest 8 of 8" -> "Galata 'ACC-ORIGIN-15 refuses a comment on text a script added' in ui-tests/tests/origin.spec.ts, red on build 0.1.7 before the menu change; jest 'ACC-ORIGIN-15 refuses text a script added' in src/__tests__/origin.spec.ts; green on build 0.1.8: Galata 60 of 60, jest 64 of 64, pytest 8 of 8"
 - [x] `ACC-ORIGIN-16` **Rewritten file text takes no comment** - HIGH; file text whose characters a script changed counts as page content and takes no comment
   - evidence: Galata 'ACC-ORIGIN-16 refuses a comment on file text a script rewrote' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-16 refuses file text a script rewrote' in src/__tests__/origin.spec.ts, which a mutation of the run check turns red; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
   - test: jest origin.spec: a rewritten text node reads as page content; Galata origin.spec 'ACC-ORIGIN-16' asserts the refusal
@@ -163,6 +168,13 @@ Telling text written in the file from content the page produces while it runs; o
   - log: 2026-09-28T13:13:54Z @kj added
   - log: 2026-09-28T13:13:54Z @kj added at the Star Colonel's word of 2026-09-28: content that comes through an iframe takes no comment
   - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-67` **Object and embed content takes no comment** - HIGH; a selection of the page holding an object or embed element is refused as page content, as for an iframe; text written inside an object's fallback content, selected on its own, is file text
+  - evidence: Galata 'ACC-ORIGIN-67 takes no comment on a selection holding an object or embed' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-67 refuses a selection holding an object or embed element' in src/__tests__/origin.spec.ts; green on build 0.1.8: Galata 60 of 60, jest 64 of 64, pytest 8 of 8
+  - related: ACC-ORIGIN-66 - the same rule for iframes
+  - test: jest origin.spec 'ACC-ORIGIN-67': selections across an object and an embed are refused, fallback text alone is not; Galata origin.spec 'ACC-ORIGIN-67': Mark and Add Comment hidden for a selection across each
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T18:14:27Z @kj added
+  - log: 2026-09-28T18:28:22Z @kj closed: verified
 
 ## Storage in the file `STORE`
 

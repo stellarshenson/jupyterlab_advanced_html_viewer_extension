@@ -179,6 +179,28 @@ describe('telling file text from page content', () => {
     );
   });
 
+  it('ACC-ORIGIN-67 refuses a selection holding an object or embed element', () => {
+    const source =
+      '<p id="a">Before the object.</p><object data="chart.svg"><p id="f">Fallback text.</p></object>' +
+      '<p id="b">Between the two.</p><embed src="chart.svg"><p id="c">After the embed.</p>';
+    const { analysis, doc } = load(source);
+    const map = new PageMap(doc, analysis);
+    expect(
+      map.selection(
+        range(doc, textOf(doc, 'Before'), 0, textOf(doc, 'Between'), 7)
+      )
+    ).toEqual({ refused: 'page' });
+    expect(
+      map.selection(
+        range(doc, textOf(doc, 'Between'), 0, textOf(doc, 'After'), 5)
+      )
+    ).toEqual({ refused: 'page' });
+    // The fallback text is written in the file and takes a comment alone.
+    expect(
+      'span' in map.selection(range(doc, textOf(doc, 'Fallback'), 0))
+    ).toBe(true);
+  });
+
   it('reads a page against a text that gained markers since it loaded', () => {
     const { doc } = load(PAGE);
     const id = '1b4e28ba-2fa1-41d2-883f-0016d3cca427';

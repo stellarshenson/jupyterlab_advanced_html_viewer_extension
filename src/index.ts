@@ -341,16 +341,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
     });
 
     app.commands.addCommand(COMMANDS.addNote, {
-      label: () => {
-        const selection = target(true)?.notes.selection;
-        return selection && 'refused' in selection
-          ? trans.__('Add Comment (text not in the file)')
-          : trans.__('Add Comment');
-      },
+      label: trans.__('Add Comment'),
       icon: NOTE_ICON,
       describedBy: { args: { type: 'object', properties: {} } },
-      isVisible: () => !!target(true)?.notes.selection,
-      isEnabled: () => marking(true) !== null,
+      isVisible: () => marking(true) !== null,
       execute: async () => {
         const attachment = marking(true);
         if (!attachment) {

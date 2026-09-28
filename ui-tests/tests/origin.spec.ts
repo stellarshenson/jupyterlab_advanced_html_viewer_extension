@@ -22,19 +22,28 @@ import {
 
 /**
  * Which text of a page takes a comment, against pages whose scripts really
- * run. A refusal is read off the context menu the reader sees: the Mark
- * submenu is not offered and Add Comment is greyed and says why.
+ * run. A refusal is read off the context menu the reader sees: neither the
+ * Mark submenu nor Add Comment is offered, while the viewer holds the
+ * refused selection.
  */
 
 test.use({ ...labFixtures, mockSettings: settings() });
 
-const REFUSED = 'Add Comment (text not in the file)';
-
-/** Assert the open menu refuses the selection, then close it. */
+/**
+ * Assert the open menu refuses the selection, then close it. The class on
+ * the viewer tells a refused selection from a lost one, which the menu shows
+ * the same way.
+ */
 async function expectRefused(page: any): Promise<void> {
+  await expect(
+    page.locator('.jp-AdvancedHTMLViewer:not(.lm-mod-hidden)')
+  ).toHaveClass(/jp-AdvancedHtml-selectingPage/);
   await expect(entry(page, 'Mark')).toBeHidden();
-  await expect(entry(page, REFUSED)).toBeVisible();
-  await expect(entry(page, REFUSED)).toHaveClass(/lm-mod-disabled/);
+  await expect(
+    page.locator('.lm-Menu-item:not(.lm-mod-hidden) .lm-Menu-itemLabel', {
+      hasText: /^Add Comment/
+    })
+  ).toHaveCount(0);
   await closeMenus(page);
 }
 
@@ -256,4 +265,28 @@ test('ACC-ORIGIN-66 takes no comment on what an iframe shows', async ({
   // A selection that holds the iframe is refused.
   await openMenu(page, await select(page, 'Before', 'After'));
   await expectRefused(page);
+});
+
+test('ACC-ORIGIN-67 takes no comment on a selection holding an object or embed', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'embedding');
+  writeFile(
+    file,
+    `<!DOCTYPE html>
+<p>Before the object.</p>
+<object style="width: 200px; height: 60px" data="missing.svg" type="image/svg+xml"></object>
+<p>Between the two.</p>
+<embed style="width: 200px; height: 60px" src="missing.svg" type="image/svg+xml">
+<p>After the embed.</p>
+`
+  );
+  await openViewer(page, file, 'After the embed.');
+  await openMenu(page, await select(page, 'Before', 'Between'));
+  await expectRefused(page);
+  await openMenu(page, await select(page, 'Between', 'After'));
+  await expectRefused(page);
+  await openMenu(page, await select(page, 'Between'));
+  await expectOffered(page);
 });

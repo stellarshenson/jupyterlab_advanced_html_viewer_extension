@@ -24,6 +24,9 @@
 import { ISpan } from './marks';
 import { IAnalysis, IRun, IStaticElement, STAMP } from './source';
 
+/** Elements that show another document inside the page. */
+const EMBEDDING = new Set(['iframe', 'object', 'embed']);
+
 /**
  * Where a text node of the page sits in the file text: its run and the index
  * of its first character in the run.
@@ -119,11 +122,12 @@ export class PageMap {
         if (node.nodeType === Node.TEXT_NODE) {
           add(node as Text);
         } else if (
-          (node as Element).localName === 'iframe' &&
+          EMBEDDING.has((node as Element).localName) &&
           range.intersectsNode(node)
         ) {
-          // What an iframe shows comes through it and is not written in the
-          // file, so a selection holding one takes no comment.
+          // What an iframe, object or embed shows comes through it and is
+          // not written in the file, so a selection holding one takes no
+          // comment.
           return { refused: 'page' };
         }
       }
