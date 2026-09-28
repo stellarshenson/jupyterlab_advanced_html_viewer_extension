@@ -3,22 +3,33 @@ import { URLExt } from '@jupyterlab/coreutils';
 import { ServerConnection } from '@jupyterlab/services';
 
 /**
- * Call the server extension
+ * What the server extension answered: the response and its body, parsed
+ * where it was JSON and left as text where it was not.
+ */
+export interface IAnswer {
+  response: Response;
+  data: any;
+}
+
+/**
+ * Call the server extension and answer with whatever it said.
+ *
+ * The status is left to the caller: the write route says what it did through
+ * a 409, and an absent server extension answers 404 with the server's HTML
+ * page, where a served 404 carries JSON.
  *
  * @param endPoint API REST end point for the extension
  * @param serverSettings The server settings to use for the request
  * @param init Initial values for the request
- * @returns The response body interpreted as JSON
  */
-export async function requestAPI<T>(
+export async function fetchAPI(
   endPoint: string,
   serverSettings: ServerConnection.ISettings,
   init: RequestInit = {}
-): Promise<T> {
-  // Make request to Jupyter API
+): Promise<IAnswer> {
   const requestUrl = URLExt.join(
     serverSettings.baseUrl,
-    'jupyterlab-advanced-html-viewer-extension', // our server extension's API namespace
+    'jupyterlab-advanced-html-viewer-extension',
     endPoint
   );
 
@@ -34,18 +45,12 @@ export async function requestAPI<T>(
   }
 
   let data: any = await response.text();
-
   if (data.length > 0) {
     try {
       data = JSON.parse(data);
-    } catch (error) {
-      console.log('Not a JSON response body.', response);
+    } catch {
+      // Left as text: the server's own HTML page for an absent route.
     }
   }
-
-  if (!response.ok) {
-    throw new ServerConnection.ResponseError(response, data.message || data);
-  }
-
-  return data;
+  return { response, data };
 }

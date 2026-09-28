@@ -1,8 +1,21 @@
 {
-  "jupyter.lab.shortcuts": [],
-  "title": "jupyterlab_advanced_html_viewer_extension",
-  "description": "jupyterlab_advanced_html_viewer_extension settings.",
+  "jupyter.lab.shortcuts": [
+    {
+      "command": "advanced-html-viewer:mark-selection",
+      "keys": ["Accel Shift M"],
+      "selector": ".jp-AdvancedHTMLViewer"
+    }
+  ],
+  "title": "Advanced HTML Viewer",
+  "description": "Marks and notes on HTML files, stored in the file itself.",
   "type": "object",
-  "properties": {},
+  "properties": {
+    "author": {
+      "title": "Note handle",
+      "description": "The handle written on every note line you add, without the leading @. Empty writes @user, and you are asked for a handle the first time you write a note. Set note handle in the command palette puts the same question again.",
+      "type": "string",
+      "default": ""
+    }
+  },
   "additionalProperties": false
 }

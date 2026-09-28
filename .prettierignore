@@ -6,3 +6,7 @@ node_modules
 jupyterlab_advanced_html_viewer_extension
 eslint.config.mjs
 .venv
+.claude
+tmp
+docs/acc-crit*.md
+docs/defects*.md

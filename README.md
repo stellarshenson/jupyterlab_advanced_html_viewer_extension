@@ -1,16 +1,27 @@
 # jupyterlab_advanced_html_viewer_extension
 
-[![Github Actions Status](https://github.com/stellarshenson/jupyterlab_advanced_html_viewer_extension/workflows/Build/badge.svg)](https://github.com/stellarshenson/jupyterlab_advanced_html_viewer_extension/actions/workflows/build.yml)
+[![GitHub Actions](https://github.com/stellarshenson/jupyterlab_advanced_html_viewer_extension/actions/workflows/build.yml/badge.svg)](https://github.com/stellarshenson/jupyterlab_advanced_html_viewer_extension/actions/workflows/build.yml)
+[![npm version](https://img.shields.io/npm/v/jupyterlab_advanced_html_viewer_extension.svg)](https://www.npmjs.com/package/jupyterlab_advanced_html_viewer_extension)
+[![PyPI version](https://img.shields.io/pypi/v/jupyterlab-advanced-html-viewer-extension.svg)](https://pypi.org/project/jupyterlab-advanced-html-viewer-extension/)
+[![Total PyPI downloads](https://static.pepy.tech/badge/jupyterlab-advanced-html-viewer-extension)](https://pepy.tech/project/jupyterlab-advanced-html-viewer-extension)
+[![JupyterLab 4](https://img.shields.io/badge/JupyterLab-4-orange.svg)](https://jupyterlab.readthedocs.io/en/stable/)
+[![Brought To You By KOLOMOLO](https://img.shields.io/badge/Brought%20To%20You%20By-KOLOMOLO-00ffff?style=flat)](https://kolomolo.com)
+[![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-blue?style=flat)](https://www.paypal.com/donate/?hosted_button_id=B4KPBJDLLXTSA)
 
-HTML viewer with trust, refresh, marks and notes stored in the file
+Read an HTML file in JupyterLab and comment on it. The viewer trusts and refreshes a page as the built-in HTML Viewer does, and adds the marks, comments and notes panel of the advanced Markdown viewer. The comments are stored in the HTML file itself, so an AI agent reading the file reads them too and can answer in it.
 
-This extension is composed of a Python package named `jupyterlab_advanced_html_viewer_extension`
-for the server extension and a NPM package named `jupyterlab_advanced_html_viewer_extension`
-for the frontend extension.
+## Features
+
+- **Opens HTML files** - double-click an `.html` file; Trust HTML runs its scripts and Rerender HTML Document reads it again, as in the built-in viewer
+- **Follows the file** - a change another program writes to the file shows within a few seconds; a change to the notes alone leaves the page as it is
+- **Marks in six colours** - select text, right-click and choose a colour under Mark, or Add Comment to write a note at once; Ctrl Shift M (Cmd Shift M on macOS) marks from the keyboard
+- **Only text written in the file takes a comment** - text a trusted page's scripts produce, and whatever an iframe of the page shows, is refused
+- **Notes are stored in the file** - as HTML comments around the passage, which no browser shows, in the same form the advanced Markdown viewer writes
+- **Notes panel beside the page** - a comment and its replies per mark, with edit, delete, colour, close and a note on the whole document
 
 ## Requirements
 
-- JupyterLab >= 4.0.0
+- JupyterLab >= 4.6.0
 
 ## Install
 
@@ -27,23 +38,3 @@ To remove the extension, execute:
 ```bash
 pip uninstall jupyterlab_advanced_html_viewer_extension
 ```
-
-## Troubleshoot
-
-If you are seeing the frontend extension, but it is not working, check
-that the server extension is enabled:
-
-```bash
-jupyter server extension list
-```
-
-If the server extension is installed and enabled, but you are not seeing
-the frontend extension, check the frontend extension is installed:
-
-```bash
-jupyter labextension list
-```
-
-## Contributing
-
-If you would like to contribute to this extension, please refer to the [Contributing Guide](CONTRIBUTING.md).

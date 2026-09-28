@@ -1,0 +1,152 @@
+/**
+ * Icons for the menu entries, the palette commands and the panel controls of
+ * the extension.
+ *
+ * Each mark colour has a swatch in that colour, so a reader picking a colour
+ * from the context menu sees it before choosing; the swatch is the one the
+ * panel shows on a row, drawn to the same geometry and painted from the same
+ * two properties, which src/swatch.ts holds to their bars. The note and
+ * panel entries carry JupyterLab's own icons for editing, listing and
+ * closing, so they read like the rest of the menu.
+ *
+ * Ported from jupyterlab_advanced_markdown_viewer_extension. The ACC-NOTES and
+ * DEF-NOTES ids in the comments of this module name items of that project's
+ * docs/acc-crit-advanced-markdown-viewer.md and docs/defects.md.
+ */
+
+import {
+  addIcon,
+  caretLeftIcon,
+  caretRightIcon,
+  closeIcon,
+  copyIcon,
+  deleteIcon,
+  editIcon,
+  LabIcon,
+  linkIcon,
+  listIcon,
+  paletteIcon,
+  tableRowsIcon
+} from '@jupyterlab/ui-components';
+
+import { MARK_COLOURS, MarkColour, PanelState } from './marks';
+
+import {
+  swatchEdgeFallback,
+  swatchEdgeProperty,
+  swatchFillFallback,
+  swatchFillProperty
+} from './swatch';
+
+/**
+ * The geometry of the panel's row swatch (.jp-AdvancedHtml-notesSwatch in
+ * style/base.css): a 10 by 10 square with 2 px corners and a 1 px rim, here
+ * centred in the 16 by 16 box of a menu icon. The stylesheet test holds the
+ * two together.
+ */
+export const SWATCH_SIZE = 10;
+export const SWATCH_RADIUS = 2;
+export const SWATCH_RIM = 1;
+
+/**
+ * The panel's row swatch in one colour, as a menu icon: the hue as the fill
+ * and the rim carrying the contrast bar, as on a row (DEF-NOTES-112). An SVG
+ * stroke straddles the edge it is drawn on, where the panel's rim is an
+ * inset shadow drawn inside it, so the rect is pulled in by half the rim and
+ * the two occupy the same ten pixels.
+ *
+ * The fallbacks are the ones the stylesheet gives the panel's own swatch, so
+ * the two renderings of one swatch degrade alike where the properties are
+ * not on the page; without them the rect would inherit the icon grey of
+ * whatever menu holds it.
+ */
+function swatch(colour: MarkColour): string {
+  const offset = (16 - SWATCH_SIZE) / 2 + SWATCH_RIM / 2;
+  const size = SWATCH_SIZE - SWATCH_RIM;
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">' +
+    `<rect x="${offset}" y="${offset}" width="${size}" ` +
+    `height="${size}" rx="${SWATCH_RADIUS - SWATCH_RIM / 2}" ` +
+    `fill="var(${swatchFillProperty(colour)}, ${swatchFillFallback(colour)})" ` +
+    `stroke="var(${swatchEdgeProperty(colour)}, ${swatchEdgeFallback(colour)})" ` +
+    `stroke-width="${SWATCH_RIM}"/></svg>`
+  );
+}
+
+/** One icon per mark colour, keyed by the colour. */
+export const MARK_ICONS = {} as Record<MarkColour, LabIcon>;
+for (const colour of MARK_COLOURS) {
+  MARK_ICONS[colour] = new LabIcon({
+    name: `jupyterlab_advanced_html_viewer_extension:mark-${colour}`,
+    svgstr: swatch(colour)
+  });
+}
+
+/** The icon of the Mark entry, which opens the submenu of colours. */
+export const MARK_MENU_ICON: LabIcon = paletteIcon;
+
+/** The removal control of a panel row: JupyterLab's trash can. */
+export const REMOVE_ICON: LabIcon = deleteIcon;
+
+/**
+ * An eye in the 16 by 16 box of a menu icon, drawn in the current colour so
+ * it follows the button it sits in. The eye says what the mark is now and
+ * not what a press would do: open while the mark shows, crossed out while
+ * it is hidden (ACC-NOTES-172).
+ */
+function eye(crossed: boolean): string {
+  const stroke = 'fill="none" stroke="currentColor" stroke-width="1.5"';
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">' +
+    `<path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" ${stroke}/>` +
+    `<circle cx="8" cy="8" r="2" ${stroke}/>` +
+    (crossed ? `<path d="M2.5 13.5l11-11" ${stroke}/>` : '') +
+    '</svg>'
+  );
+}
+
+/** The eye a row carries while its mark shows: open. */
+export const OPEN_EYE_ICON = new LabIcon({
+  name: 'jupyterlab_advanced_html_viewer_extension:open-eye',
+  svgstr: eye(false)
+});
+
+/** The eye a row carries while its mark is hidden, which is closed: crossed. */
+export const CROSSED_EYE_ICON = new LabIcon({
+  name: 'jupyterlab_advanced_html_viewer_extension:crossed-eye',
+  svgstr: eye(true)
+});
+
+/**
+ * The control on the minimap strip that expands the panel: a caret pointing
+ * the way the panel grows, into the preview on its left.
+ */
+export const EXPAND_ICON: LabIcon = caretLeftIcon;
+
+/**
+ * The control on the expanded panel that collapses it to the minimap: a caret
+ * pointing the way the panel shrinks, towards its own edge on the right.
+ */
+export const COLLAPSE_ICON: LabIcon = caretRightIcon;
+
+/** The icon of the entry that writes a note, and of the edit icon an entry carries. */
+export const NOTE_ICON: LabIcon = editIcon;
+
+/** The x an entry carries, which deletes it. */
+export const DELETE_NOTE_ICON: LabIcon = closeIcon;
+
+/** The icon of the panel control that adds a note on the document as a whole. */
+export const ADD_ICON: LabIcon = addIcon;
+
+/** Copying the rendered document, in JupyterLab's own copy icon. */
+export const COPY_ICON: LabIcon = copyIcon;
+
+/** Copying the address of a link, in JupyterLab's own link icon. */
+export const LINK_ICON: LabIcon = linkIcon;
+
+/** The icon of the entry that puts the panel in each state. */
+export const PANEL_ICONS: Record<PanelState, LabIcon> = {
+  expanded: listIcon,
+  minimap: tableRowsIcon,
+  hidden: closeIcon
+};

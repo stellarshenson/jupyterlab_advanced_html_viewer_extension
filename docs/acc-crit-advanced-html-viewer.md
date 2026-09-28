@@ -1,0 +1,446 @@
+# Acceptance Criteria - jupyterlab_advanced_html_viewer_extension
+
+A viewer for HTML files that trusts and refreshes a page as the built-in HTML Viewer does, and carries the marks, comments and notes panel of the advanced Markdown viewer. A comment attaches only to text written in the file, and is stored in the file as HTML comments.
+
+## Authors
+
+- `@kj` Konrad Jelen
+
+## Viewing, trust and refresh `VIEW`
+
+Showing an HTML file in a sandboxed frame, trusting it and rendering it again, as the built-in HTML Viewer does
+
+- [x] `ACC-VIEW-1` **Opens html files by default** - CRITICAL; double-clicking an .html file in the file browser opens it in the Advanced HTML Viewer; the built-in HTML Viewer stays under Open With
+  - evidence: Galata 'ACC-VIEW-1 opens an html file in the advanced viewer by default' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-1': double-click fixture.html, assert .jp-AdvancedHTMLViewer opens and Open With lists HTML Viewer
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:52Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-2` **Untrusted by default** - CRITICAL; a newly opened file is untrusted, unless the built-in viewer's trustByDefault setting is on: the frame sandbox is allow-same-origin allow-downloads and no script of the page runs
+  - evidence: Galata 'ACC-VIEW-2 runs no page script while untrusted' in ui-tests/tests/viewer.spec.ts; jest 'ACC-VIEW-2 runs no script and carries only the two common tokens while untrusted' in src/__tests__/render.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-2': fixture script writes text into the body; assert the text is absent and the sandbox attribute
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:52Z @kj added
+  - log: 2026-09-28T13:16:21Z @kj amended text "a newly opened file is untrusted: the frame sandbox is allow-same-origin allow-downloads and no script of the page runs" -> "a newly opened file is untrusted, unless the built-in viewer's trustByDefault setting is on: the frame sandbox is allow-same-origin allow-downloads and no script of the page runs"
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-3` **Trust HTML runs the scripts** - CRITICAL; the toolbar button Trust HTML adds allow-scripts allow-popups to the sandbox, renders the page again and turns into Distrust HTML
+  - evidence: Galata 'ACC-VIEW-3 Trust HTML runs the scripts' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-3': press Trust HTML, assert the text the script writes appears and the button reads Distrust HTML
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:52Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-4` **Distrust HTML stops the scripts** - HIGH; Distrust HTML takes allow-scripts and allow-popups off, renders the page again without scripts and turns back into Trust HTML
+  - evidence: Galata 'ACC-VIEW-4 Distrust HTML stops the scripts' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-4': trust, then press Distrust HTML, assert the script text is gone and the button reads Trust HTML
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:52Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-5` **Refresh renders the file again** - HIGH; the toolbar button Rerender HTML Document reloads the file from disk and renders the page again while the document has no unsaved changes
+  - evidence: Galata 'ACC-VIEW-5 Refresh renders the file again' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-5': trusted fixture writes a random number; press the button, assert a new number
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:52Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-6` **Relative addresses resolve against the file** - HIGH; a relative src or href in the page resolves against the folder of the file, and a link opens inside the frame
+  - evidence: Galata 'ACC-VIEW-6 resolves a relative address against the file' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-6': fixture img src=pixel.png beside the file, assert naturalWidth above 0
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:52Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-7` **Standards mode kept** - MEDIUM; a file that starts with <!DOCTYPE html> renders in standards mode, document.compatMode CSS1Compat; the built-in viewer drops the doctype
+  - evidence: Galata 'ACC-VIEW-7 keeps the page in standards mode' in ui-tests/tests/viewer.spec.ts; jest 'ACC-VIEW-7 keeps the doctype at the top of the page' in src/__tests__/render.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-7': assert the frame document compatMode; jest render.spec keeps the doctype
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-8` **Pop-up links flagged while untrusted** - LOW; while untrusted, a link with target _blank shows the not-allowed cursor and the warning banner on hover, as the built-in viewer does
+  - evidence: jest 'ACC-VIEW-8 flags pop-up links while untrusted and not while trusted' in src/__tests__/render.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest render.spec: the rendered page holds the warning style while untrusted and not while trusted
+  - test-tags: UNIT
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-9` **Edits render again** - HIGH; a change of the document text other than markers renders the page again within 2 s, such as typing in an editor open on the same file
+  - evidence: Galata 'ACC-VIEW-9 renders again after the text changes in an editor' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-9': open the file in the editor too, type a word, assert the frame shows it
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-10` **Scroll position kept across a render** - MEDIUM; rendering the page again keeps the scroll offset of the frame
+  - evidence: Galata 'ACC-VIEW-10 keeps the scroll position across a render' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-VIEW-10': scroll the frame to 400 px, change the text, assert scrollY within 5 px of 400
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+
+## Following the file `LIVE`
+
+Loading a change another process writes to the file into the open viewer
+
+- [x] `ACC-LIVE-11` **A change on disk shows without Refresh** - HIGH; a file another process rewrites is loaded into the open viewer within 4 s while the document has no unsaved changes
+  - evidence: Galata 'ACC-LIVE-11 shows a change another process wrote without Refresh' in ui-tests/tests/viewer.spec.ts; jest 'ACC-LIVE-11 loads a change another process wrote and records its revision' in src/__tests__/follow.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata viewer.spec 'ACC-LIVE-11': write new text through the contents API, assert the frame shows it within 4 s
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-LIVE-12` **A marker change on disk keeps the page** - HIGH; a rewrite that adds, changes or removes only markers, such as a reply an agent writes, updates the panel and does not load the page again
+  - evidence: Galata 'ACC-LIVE-12 shows a reply written to the file without loading the page again' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - mechanism: 2026-09-28T13:04:20Z @kj the new text and the rendered text are compared with every mark and settings marker taken out; equal means only markers changed, so the marks are read and painted again on the page as it stands and no render is made
+  - test: Galata viewer.spec 'ACC-LIVE-12': set a property on the frame window, write a note line on disk, assert the panel shows it and the property is still set
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-LIVE-13` **Unsaved changes are not replaced** - HIGH; while the document holds unsaved changes, a change on disk is not loaded
+  - evidence: jest 'ACC-LIVE-13 loads nothing while the document holds unsaved changes' in src/__tests__/follow.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest follow.spec: the follower loads nothing while the model is dirty
+  - test-tags: UNIT
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+
+## Where text comes from `ORIGIN`
+
+Telling text written in the file from content the page produces while it runs; only file text takes a comment
+
+- [x] `ACC-ORIGIN-14` **File text takes a comment** - CRITICAL; a selection of text written in the file is offered the Mark submenu and Add Comment
+  - evidence: Galata 'ACC-ORIGIN-14 offers Mark and Add Comment on text written in the file' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-14 maps a selection of file text to its span in the file' in src/__tests__/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata origin.spec 'ACC-ORIGIN-14': select a paragraph, right-click, assert both entries visible and enabled
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-15` **Script-added text takes no comment** - CRITICAL; for a selection touching text a script of the trusted page added, the Mark submenu is hidden and Add Comment is disabled and reads Add Comment (text not in the file)
+  - evidence: Galata 'ACC-ORIGIN-15 refuses a comment on text a script added' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-15 refuses text a script added' in src/__tests__/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata origin.spec 'ACC-ORIGIN-15': trusted fixture appends a paragraph by script; select it, assert Mark hidden and the disabled label
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-16` **Rewritten file text takes no comment** - HIGH; file text whose characters a script changed counts as page content and takes no comment
+  - evidence: Galata 'ACC-ORIGIN-16 refuses a comment on file text a script rewrote' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-16 refuses file text a script rewrote' in src/__tests__/origin.spec.ts, which a mutation of the run check turns red; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest origin.spec: a rewritten text node reads as page content; Galata origin.spec 'ACC-ORIGIN-16' asserts the refusal
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-17` **Moved file text takes a comment** - MEDIUM; file text a script moved to another place in the page still takes a comment, and the markers go around that text in the file
+  - evidence: Galata 'ACC-ORIGIN-17 marks file text a script moved, around its text in the file' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-17 keeps file text a script moved, at its place in the file' in src/__tests__/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest origin.spec: a moved element stays file text; Galata origin.spec 'ACC-ORIGIN-17': mark the moved paragraph, assert the markers around its text on disk
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-18` **A selection across both takes no comment** - HIGH; a selection holding file text and page content takes no comment
+  - evidence: Galata 'ACC-ORIGIN-18 refuses a selection holding file text and script text' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-18 refuses a selection holding file text and page content' in src/__tests__/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest origin.spec; Galata origin.spec 'ACC-ORIGIN-18': select from file text into script text, assert the refusal
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:03:53Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-19` **Numbered start tags tell the two apart** - CRITICAL; the frame shows the file with an attribute data-jp-ahv numbering every start tag in file order; a text node is file text only when its element's number occurs once in the page and its characters continue that element's file text at that point; the file never carries the attribute
+  - evidence: Galata 'ACC-ORIGIN-19 leaves no number of the page in the file' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-19 numbers every start tag in file order and nothing else' in src/__tests__/source.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - mechanism: 2026-09-28T13:04:20Z @kj parse5 with source locations parses the file; each start tag gets data-jp-ahv=<ordinal> in the copy the frame loads; the same text parsed again gives each element's file text as runs with a source offset per character; after load, live text nodes are matched to those runs in order, and a node that does not continue its run is page content
+  - test: jest origin.spec stamps and classifies; Galata origin.spec 'ACC-ORIGIN-19': after a mark the file on disk holds no data-jp-ahv
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:04:20Z @kj mechanism recorded; reason: the mechanism names the three steps the classification rests on
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-20` **The page is read again as it changes** - HIGH; text a script adds or changes after the page loaded is classified again within 1 s, and the marks are painted again
+  - evidence: Galata 'ACC-ORIGIN-20 refuses a comment on text a script adds after the page loaded' in ui-tests/tests/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata origin.spec 'ACC-ORIGIN-20': trusted fixture adds a paragraph after 500 ms; select it once shown, assert the refusal
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-21` **Keyboard marking of page content says why** - MEDIUM; Accel Shift M on a selection touching page content writes nothing and shows the notification Only text written in the file takes a comment
+  - evidence: Galata 'ACC-ORIGIN-21 says why the keyboard marks no page content' in ui-tests/tests/origin.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata origin.spec 'ACC-ORIGIN-21': select script text, press Control Shift M, assert the notification and an unchanged file
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-22` **Untrusted, every text is file text** - MEDIUM; with scripts off every rendered text of the file takes a comment, the content of a noscript element included
+  - evidence: Galata 'ACC-ORIGIN-22 marks the text of a noscript element while untrusted' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-22 reads noscript content as elements while scripts are off' in src/__tests__/source.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest origin.spec: noscript content is elements when scripting is off; Galata origin.spec 'ACC-ORIGIN-22' marks noscript text
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-ORIGIN-66` **Text inside an iframe takes no comment** - HIGH; text shown inside an iframe of the page takes no comment, whatever its src or srcdoc: a right-click in it offers no Mark submenu and no Add Comment, and a selection of the page holding an iframe element is refused as page content
+  - evidence: Galata 'ACC-ORIGIN-66 takes no comment on what an iframe shows' in ui-tests/tests/origin.spec.ts; jest 'ACC-ORIGIN-66 refuses a selection holding an iframe' in src/__tests__/origin.spec.ts, which a mutation of the iframe check turns red; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata origin.spec 'ACC-ORIGIN-66': fixture iframe srcdoc; right-click inside it, assert no Add Comment; select across the iframe, assert the refusal
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:13:54Z @kj added
+  - log: 2026-09-28T13:13:54Z @kj added at the Star Colonel's word of 2026-09-28: content that comes through an iframe takes no comment
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+
+## Storage in the file `STORE`
+
+How marks, notes and the panel state are written into the HTML file
+
+- [x] `ACC-STORE-23` **A mark is two comments around the passage** - CRITICAL; a mark is stored as <!-- mark:<uuid> note colour=<colour> --> before the passage and <!-- /mark:<uuid> --> after it, the grammar of the advanced Markdown viewer
+  - evidence: Galata 'ACC-STORE-23 writes the two markers around the passage' in ui-tests/tests/marks.spec.ts; jest 'ACC-STORE-23 puts the two markers right around the passage' in src/__tests__/store.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-STORE-23': mark a phrase, read the file, assert both markers around it
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-STORE-24` **The identifier is a UUID found twice** - HIGH; the identifier is a version 4 UUID and occurs exactly twice in the file
+  - evidence: Galata 'ACC-STORE-24 gives each mark an identifier found exactly twice' in ui-tests/tests/marks.spec.ts; jest 'ACC-STORE-24 makes version 4 UUIDs' in src/__tests__/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest marks.spec; Galata marks.spec 'ACC-STORE-24': mark three phrases, assert each identifier occurs twice
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-STORE-25` **Only the markers change the file** - CRITICAL; removing every marker from a marked file gives back the original file byte for byte
+  - evidence: Galata 'ACC-STORE-25 changes the file by the markers alone' in ui-tests/tests/marks.spec.ts; jest 'ACC-STORE-25 gives back the original file when the markers are taken out' in src/__tests__/store.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-STORE-25': mark two phrases, strip the markers from the file, compare with the original
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-26` **Markers sit only between characters of file text** - CRITICAL; a marker is never written inside a tag, an attribute, a character reference, a comment, or the text of script, style, textarea or title
+  - evidence: jest 'ACC-STORE-26 steps over a character reference as a whole' in src/__tests__/source.spec.ts; the ignored end tag, comment and raw text cases in the same file; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest source.spec: selections at references, ignored end tags and comments map to offsets outside them
+  - test-tags: UNIT
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-27` **Edge: first line of a pre** - MEDIUM; a mark at the start of a pre's text is written after the newline the parser drops, so the pre keeps its first line
+  - evidence: jest 'ACC-STORE-27 places the first character of a pre after its dropped newline' in src/__tests__/source.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest source.spec: the offset of the first character of a pre lies after its leading newline
+  - test-tags: UNIT
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-28` **Edge: CRLF line endings** - MEDIUM; in a file with CRLF line endings no marker is written between CR and LF, and the file keeps CRLF endings after a mark
+  - evidence: Galata 'ACC-STORE-28 keeps the CRLF line endings of the file' in ui-tests/tests/marks.spec.ts; jest 'ACC-STORE-28 never places a character between CR and LF' in src/__tests__/source.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest source.spec; Galata marks.spec 'ACC-STORE-28': mark a CRLF fixture, assert every line break is still CRLF
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-29` **A mark spans elements** - HIGH; a selection across several elements puts the opening marker in its first text and the closing marker in its last, both inline, with no line break added
+  - evidence: Galata 'ACC-STORE-29 marks a selection across two paragraphs' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-STORE-29': select from paragraph one into paragraph two, assert marker places and both painted
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-30` **A marked file renders as the plain one** - CRITICAL; a marked file shows the same text as the unmarked file in the built-in HTML Viewer
+  - evidence: Galata 'ACC-STORE-30 renders a marked file as the plain one in the built-in viewer' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-STORE-30': open both with the HTML Viewer factory, compare the body text
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-31` **Notes are lines in the opening marker** - HIGH; a note is the line @<handle> <UTC ISO stamp>: <text> inside the opening marker; --> and --!> in the text are written apart so they never end the comment
+  - evidence: jest 'ACC-STORE-31 writes a note so neither --> nor --!> ends the comment' in src/__tests__/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest marks.spec: serialise and parse a note holding --> and --!>
+  - test-tags: UNIT
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-32` **Where a document note goes** - MEDIUM; a note on the whole document is an opening marker of type document with no closing marker, on its own line after the doctype, at the top of a file with none
+  - evidence: Galata 'ACC-STORE-32 writes a document note on its own line after the doctype' in ui-tests/tests/panel.spec.ts; jest 'ACC-STORE-32 puts a document note on its own line after the doctype' in src/__tests__/store.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest store.spec; Galata panel.spec 'ACC-STORE-32': press the header plus, save a note, read the file
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:07Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-33` **Panel state is one settings marker** - MEDIUM; the panel state is one marker <!-- marks:settings panel=<state> --> at the end of the file, rewritten whole on every change; an unreadable one is replaced
+  - evidence: Galata 'ACC-STORE-33 reopens the file in the panel state it was left in' in ui-tests/tests/panel.spec.ts; jest 'ACC-STORE-33 keeps exactly one settings marker at the end, rewritten whole' in src/__tests__/store.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest store.spec; Galata panel.spec 'ACC-STORE-33': collapse to the minimap, reopen the file, assert the minimap
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-34` **Writing a mark raises no File Changed dialog** - CRITICAL; a marker write on a document with no unsaved changes loads a change waiting on disk first and goes through the server's compare-and-write route; no File Changed dialog opens
+  - evidence: Galata 'ACC-STORE-34 writes a mark over a change on disk with no File Changed dialog' in ui-tests/tests/marks.spec.ts; jest 'ACC-STORE-34 writes a clean document through the route and records the revision' in src/__tests__/notes.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - mechanism: 2026-09-28T13:04:20Z @kj the writer fetches the file's hash, loads a newer file into the document first, applies the edits in one tagged transaction, then POSTs write with the Context's hash; on 200 the Context's contents model takes the answer, so its next save sees no change on disk
+  - test: Galata marks.spec 'ACC-STORE-34': write the file through the contents API, mark at once, assert no dialog and the file holds both
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-35` **A mark never saves unsaved changes** - HIGH; with unsaved changes in the document a marker is written into the document only, and reaches disk with the reader's next save
+  - evidence: jest 'ACC-STORE-35 writes into a document with unsaved changes and saves nothing' in src/__tests__/notes.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest store.spec: the writer makes no route call and no save while the model is dirty
+  - test-tags: UNIT
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-36` **Marking does not load the page again** - HIGH; a marker write paints in place: the frame keeps its document and the page scripts keep their state
+  - related: DEF-VIEW-1 - the page loaded again on the first mark until the viewer stopped rendering on update requests
+  - evidence: Galata 'ACC-STORE-36 paints a new mark without loading the page again' in ui-tests/tests/marks.spec.ts, red before the DEF-VIEW-1 fix; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-STORE-36': set a property on the frame window, mark, assert the property is still set
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+
+## Marking in the page `MARK`
+
+Making, painting and opening marks in the rendered page
+
+- [x] `ACC-MARK-37` **Mark submenu with six colours** - HIGH; the Mark submenu offers yellow, blue, pink, orange, red and green with a swatch each; choosing one writes the mark in that colour and paints the passage in it
+  - evidence: Galata 'ACC-MARK-37 marks a passage in each of the six colours' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-37': mark with each colour, assert the colour in the marker and a highlight of that colour
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-MARK-38` **Add Comment** - HIGH; Add Comment marks the selection in yellow and opens the note field of the new mark in the panel
+  - evidence: Galata 'ACC-MARK-38 Add Comment marks the passage and opens its note field' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-38': choose Add Comment, assert the marker and a focused note field
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-MARK-39` **Entries only with a selection** - HIGH; without a selection the Mark submenu and Add Comment are hidden
+  - evidence: Galata 'ACC-MARK-39 offers no marking entry without a selection' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-39': right-click with no selection, assert both hidden, not absent
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-MARK-40` **Keyboard marking** - MEDIUM; Accel Shift M in the page marks the selected file text in yellow; Mark the selected passage is in the palette, enabled only with a selection of file text
+  - evidence: Galata 'ACC-MARK-40 marks the selection from the keyboard' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-40': select, press Control Shift M, assert the markers on disk
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-MARK-41` **Marking clears the selection** - MEDIUM; once a mark is written the page holds no selection
+  - evidence: Galata 'ACC-MARK-41 clears the selection once the mark is written' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-41': mark, assert the frame selection is collapsed
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-MARK-42` **Marks paint without touching the page** - HIGH; a marked passage is painted through the CSS Custom Highlight API: no element is added to the page and no attribute changes
+  - evidence: Galata 'ACC-MARK-42 paints a mark without adding to the page' in ui-tests/tests/marks.spec.ts, red before the DEF-VIEW-1 fix; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - mechanism: 2026-09-28T13:04:20Z @kj one Highlight per colour in the frame window's CSS.highlights, built from Ranges over the mapped file text; the ::highlight rules sit in a stylesheet adopted by the frame document, so no node is added
+  - test: Galata marks.spec 'ACC-MARK-42': count the body elements and read the markup before and after a mark, assert equal and a highlight registered
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-MARK-43` **Hover shows the notes** - MEDIUM; hovering a marked passage shows its notes in a tooltip, one line per note with its author; a bare mark shows none
+  - evidence: Galata 'ACC-MARK-43 shows the notes of a marked passage on hover' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-43': hover a noted passage, assert the tooltip text; hover a bare one, assert none
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-MARK-44` **A click on a marked passage** - MEDIUM; a click on a bare mark opens its note field; a click on a mark with notes opens its row and starts no new note
+  - evidence: Galata 'ACC-MARK-44 opens the note field or the row from a click on the passage' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-44': click each kind, assert field or open row
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-MARK-45` **Overlapping marks** - MEDIUM; two marks over overlapping text are both kept, listed and painted, with all four markers intact
+  - evidence: Galata 'ACC-MARK-45 keeps two overlapping marks' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-45': mark two overlapping selections, assert two rows and four markers
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-MARK-46` **Shift right-click keeps the browser menu** - LOW; a right click with Shift held opens no JupyterLab menu, leaving the browser's own
+  - evidence: Galata 'ACC-MARK-46 leaves the browser its menu on a Shift right click' in ui-tests/tests/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata marks.spec 'ACC-MARK-46': shift right-click in the page, assert no .lm-Menu
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+
+## Notes panel `PANEL`
+
+The list of marks and their notes beside the page
+
+- [x] `ACC-PANEL-47` **Panel beside the page** - HIGH; the notes panel is a narrow strip right of the frame, with no overlap
+  - evidence: Galata 'ACC-PANEL-47 sits beside the page as a narrower strip' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-47': assert the panel box sits right of the frame box and is narrower
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:08Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-PANEL-48` **Three panel states** - HIGH; the panel is expanded, minimap or hidden, set from its header and from the context menu; while hidden a badge over the page opens it
+  - evidence: Galata 'ACC-PANEL-48 moves through expanded, minimap and hidden' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-48': cycle the states, assert rows, ticks, nothing and the badge
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-PANEL-49` **Opening state** - MEDIUM; a document with marks opens with the panel listing them, one with none opens with it hidden, and the first mark opens it
+  - evidence: Galata 'ACC-PANEL-49 opens with the marks listed, hidden without, and on the first mark' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-49': open a marked and an unmarked fixture, then mark the unmarked one
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-PANEL-50` **A row shows the passage and the thread** - HIGH; a row shows the colour swatch and the passage as written in the file; opened, it shows every note with its author and a 24-hour stamp, the first the comment and the rest replies
+  - evidence: Galata 'ACC-PANEL-50 shows the passage and the whole thread of an open row' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-50': open a row of a two-note fixture, assert both entries in order
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-PANEL-51` **Comment and Reply** - HIGH; Comment on a bare mark and Reply on a mark with notes open the note field; Save or Shift Enter writes a note line signed with the handle
+  - evidence: Galata 'ACC-PANEL-51 writes a reply with Shift Enter' in ui-tests/tests/panel.spec.ts; jest 'ACC-PANEL-51 signs a note with the handle and a UTC stamp' in src/__tests__/notes.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-51': reply with Shift Enter, assert the new line on disk
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-PANEL-52` **Edit and delete a note** - MEDIUM; each note has an edit icon and an x; edit rewrites its text keeping author and stamp, x removes its line
+  - evidence: Galata 'ACC-PANEL-52 edits one note and deletes another' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-52': edit one note and delete another, assert the file
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:28Z @kj closed: verified
+- [x] `ACC-PANEL-53` **Selecting a row reveals the passage** - HIGH; choosing a row scrolls the page to the passage and flashes it
+  - evidence: Galata 'ACC-PANEL-53 scrolls the page to the passage of the chosen row' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-53': scroll the frame to the top, choose the row of a mark far down, assert the passage in view
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-54` **Colour from the swatch** - MEDIUM; the swatch of a row lists the other five colours; choosing one rewrites the colour attribute and nothing else
+  - evidence: Galata 'ACC-PANEL-54 recolours a mark from its swatch' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-54': recolour to green, assert colour=green and the rest of the marker unchanged
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-55` **Close and reopen a mark** - MEDIUM; the eye closes a mark with status=closed: it is neither painted nor listed until Show hidden lists it; the eye reopens it
+  - evidence: Galata 'ACC-PANEL-55 closes a mark with the eye and lists it again under Show hidden' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-55': close, assert status=closed and no row; Show hidden, reopen
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-56` **Remove a mark** - HIGH; the trash removes both markers and leaves the text as it was
+  - evidence: Galata 'ACC-PANEL-56 removes a mark and leaves its text' in ui-tests/tests/panel.spec.ts; jest 'ACC-PANEL-56 removes both markers of one mark and leaves the other' in src/__tests__/store.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-56': remove, assert the file equals the unmarked original
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-57` **Document note** - MEDIUM; the header plus opens a note on the whole document; leaving it empty removes the marker it wrote
+  - evidence: Galata 'ACC-PANEL-57 removes the document marker a cancelled note wrote' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-57': press plus, cancel, assert no document marker
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-58` **Unanchored mark** - MEDIUM; a mark whose passage is not in the page, such as file text a script rewrote, is listed with the word unanchored
+  - evidence: Galata 'ACC-PANEL-58 lists a mark whose text a script rewrote as unanchored' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-58': trusted fixture rewrites a marked paragraph, assert the unanchored row
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-59` **Unknown types and attributes kept** - MEDIUM; a mark of a type this version does not write is listed and never rewritten, and attributes it does not know keep their order on every rewrite
+  - evidence: jest 'ACC-PANEL-59 keeps attributes it does not know, in their order' in src/__tests__/marks.spec.ts; jest 'ACC-PANEL-59 reads a mark of a type it does not write' in src/__tests__/marks.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: jest marks.spec: rewrite keeps owner=agent due=2026-09-30 in order; a task mark is not rewritten
+  - test-tags: UNIT
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-60` **Note handle asked once** - MEDIUM; the first note written while the author setting is empty asks for a handle with Save and Skip; Set note handle in the palette asks again
+  - evidence: Galata 'ACC-PANEL-60 asks for a handle at the first note and signs with it' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-60': clear author, save a note, answer kj, assert @kj on disk
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-61` **Copy mark ID** - LOW; a row's context menu holds Copy mark ID, which copies the mark's identifier
+  - evidence: Galata 'ACC-PANEL-61 copies the identifier of a mark from its row' in ui-tests/tests/panel.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: Galata panel.spec 'ACC-PANEL-61': right-click a row, choose Copy mark ID, assert the clipboard
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+
+## Server write route `ROUTE`
+
+The compare-and-write route of the server extension
+
+- [x] `ACC-ROUTE-62` **Compare-and-write** - CRITICAL; POST write with path, expected and content writes the file only while its hash equals expected, and answers 200 with the new contents model
+  - evidence: pytest test_write_matching_hash in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: pytest test_routes.py test_write_matching_hash
+  - test-tags: INTEGRATION
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-ROUTE-63` **Refusal on a changed file** - HIGH; a hash that does not match answers 409 with the current hash and leaves the file as it was
+  - evidence: pytest test_write_stale_hash in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: pytest test_routes.py test_write_stale_hash
+  - test-tags: INTEGRATION
+  - log: 2026-09-28T13:04:09Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-ROUTE-64` **Bad requests** - MEDIUM; a body without the three strings answers 400 and a missing file 404
+  - evidence: pytest test_write_bad_body and test_write_missing_file in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: pytest test_routes.py test_write_bad_body and test_write_missing_file
+  - test-tags: INTEGRATION
+  - log: 2026-09-28T13:04:10Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-ROUTE-65` **Authentication required** - CRITICAL; the route refuses a request without credentials
+  - evidence: pytest test_write_needs_auth in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; make test ran check_auth.py: all endpoints require authentication; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
+  - test: pytest test_routes.py test_write_needs_auth; make test runs check_auth.py
+  - test-tags: INTEGRATION
+  - log: 2026-09-28T13:04:10Z @kj added
+  - log: 2026-09-28T13:54:29Z @kj closed: verified

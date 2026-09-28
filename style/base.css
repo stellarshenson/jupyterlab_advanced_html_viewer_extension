@@ -1,5 +1,686 @@
 /*
-    See the JupyterLab Developer Guide for useful CSS Patterns:
+ | The advanced HTML viewer: the frame, the notes panel beside it, and the
+ | tooltip over a marked passage. The page inside the frame is painted from
+ | src/paint.ts through the CSS Custom Highlight API and takes no rule from
+ | here. The panel, swatch and tick rules are ported from the advanced
+ | Markdown viewer; the ACC-NOTES and DEF-NOTES ids in their comments name
+ | items of that project's trackers.
+ */
 
-    https://jupyterlab.readthedocs.io/en/stable/developer/css.html
-*/
+.jp-AdvancedHTMLViewer .jp-HTMLViewer {
+  min-width: 0;
+}
+
+.jp-AdvancedHtml-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 360px;
+  padding: 4px 8px;
+  white-space: pre-wrap;
+  pointer-events: none;
+  color: var(--jp-ui-font-color1);
+  font-family: var(--jp-ui-font-family);
+  font-size: var(--jp-ui-font-size1);
+  background: var(--jp-layout-color1);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 2px;
+  box-shadow: var(--jp-elevation-z4);
+}
+
+/*
+ | A minimap tick carries the wash of its mark's colour; the page's own
+ | passages take theirs from src/paint.ts.
+ */
+.jp-AdvancedHtml-mark-yellow {
+  --jp-AdvancedHtml-mark-wash: rgb(240 212 15 / 20%);
+}
+
+.jp-AdvancedHtml-mark-blue {
+  --jp-AdvancedHtml-mark-wash: rgb(15 112 240 / 11%);
+}
+
+.jp-AdvancedHtml-mark-pink {
+  --jp-AdvancedHtml-mark-wash: rgb(246 49 177 / 14%);
+}
+
+.jp-AdvancedHtml-mark-orange {
+  --jp-AdvancedHtml-mark-wash: rgb(241 148 34 / 17%);
+}
+
+.jp-AdvancedHtml-mark-red {
+  --jp-AdvancedHtml-mark-wash: rgb(230 30 70 / 18%);
+}
+
+.jp-AdvancedHtml-mark-green {
+  --jp-AdvancedHtml-mark-wash: rgb(30 210 50 / 17%);
+}
+
+body[data-jp-theme-light='false'] .jp-AdvancedHtml-mark-yellow {
+  --jp-AdvancedHtml-mark-wash: rgb(240 212 15 / 14%);
+}
+
+body[data-jp-theme-light='false'] .jp-AdvancedHtml-mark-blue {
+  --jp-AdvancedHtml-mark-wash: rgb(68 141 241 / 17%);
+}
+
+body[data-jp-theme-light='false'] .jp-AdvancedHtml-mark-pink {
+  --jp-AdvancedHtml-mark-wash: rgb(247 68 178 / 15%);
+}
+
+body[data-jp-theme-light='false'] .jp-AdvancedHtml-mark-orange {
+  --jp-AdvancedHtml-mark-wash: rgb(241 148 34 / 15%);
+}
+
+body[data-jp-theme-light='false'] .jp-AdvancedHtml-mark-red {
+  --jp-AdvancedHtml-mark-wash: rgb(230 30 70 / 18%);
+}
+
+body[data-jp-theme-light='false'] .jp-AdvancedHtml-mark-green {
+  --jp-AdvancedHtml-mark-wash: rgb(30 210 50 / 18%);
+}
+
+/*
+ | A swatch is not the wash above it. That wash is close to the page by
+ | design, and on a ten pixel square it is not a colour anybody can name, so
+ | the swatch stands at three to one against the panel behind it instead
+ | (ACC-NOTES-177). The bar is carried by the rim, which is the boundary of
+ | the object it is asked about: held to it the fill stops being the hue and
+ | six such fills in a column pull the eye off the text (DEF-NOTES-112), so
+ | the fill is the hue held only to the floor that keeps it off the page.
+ |
+ | src/swatch.ts walks each hue in lightness against the background the page
+ | carries and writes the twelve properties on the body. Each rule here binds
+ | one colour's pair to the two names the swatch and the bar are painted
+ | from, and the values named are the light theme's answers, which show until
+ | the walk has run and wherever no background can be read at all; a jest
+ | check holds each one to what the walk gives for that theme, so a retuned
+ | hue cannot leave a fallback of another colour behind. On a dark page every
+ | hue clears three to one unwalked, so rim and fill are both the hue there
+ | and the swatch is a plain colour chip.
+ |
+ | Three names, not two. The background-color is the colour that stands at
+ | the bar, which is what the bar of an unanchored mark takes
+ | (ACC-NOTES-180), that bar being three pixels wide with no inside to fill.
+ | The square's own edge is a fourth thing again on a dark page - the hue at
+ | a lower alpha than its fill, so it reads as a darker edge and not a
+ | brighter one (DEF-NOTES-113) - and it is the rim name the square binds to.
+ | On a light page the two are the same colour. The square overrides the
+ | background further down the file.
+ */
+
+.jp-AdvancedHtml-swatch-yellow {
+  --jp-AdvancedHtml-swatch-rim: var(
+    --jp-AdvancedHtml-swatch-edge-yellow,
+    #9c890a
+  );
+  --jp-AdvancedHtml-swatch-fill: var(
+    --jp-AdvancedHtml-swatch-fill-yellow,
+    #dec40e
+  );
+
+  background-color: var(--jp-AdvancedHtml-swatch-yellow, #9c890a);
+}
+
+.jp-AdvancedHtml-swatch-blue {
+  --jp-AdvancedHtml-swatch-rim: var(
+    --jp-AdvancedHtml-swatch-edge-blue,
+    #0f70f0
+  );
+  --jp-AdvancedHtml-swatch-fill: var(
+    --jp-AdvancedHtml-swatch-fill-blue,
+    #0f70f0
+  );
+
+  background-color: var(--jp-AdvancedHtml-swatch-blue, #0f70f0);
+}
+
+.jp-AdvancedHtml-swatch-pink {
+  --jp-AdvancedHtml-swatch-rim: var(
+    --jp-AdvancedHtml-swatch-edge-pink,
+    #f631b1
+  );
+  --jp-AdvancedHtml-swatch-fill: var(
+    --jp-AdvancedHtml-swatch-fill-pink,
+    #f631b1
+  );
+
+  background-color: var(--jp-AdvancedHtml-swatch-pink, #f631b1);
+}
+
+.jp-AdvancedHtml-swatch-orange {
+  --jp-AdvancedHtml-swatch-rim: var(
+    --jp-AdvancedHtml-swatch-edge-orange,
+    #c9740d
+  );
+  --jp-AdvancedHtml-swatch-fill: var(
+    --jp-AdvancedHtml-swatch-fill-orange,
+    #f19422
+  );
+
+  background-color: var(--jp-AdvancedHtml-swatch-orange, #c9740d);
+}
+
+.jp-AdvancedHtml-swatch-red {
+  --jp-AdvancedHtml-swatch-rim: var(--jp-AdvancedHtml-swatch-edge-red, #e61e46);
+  --jp-AdvancedHtml-swatch-fill: var(
+    --jp-AdvancedHtml-swatch-fill-red,
+    #e61e46
+  );
+
+  background-color: var(--jp-AdvancedHtml-swatch-red, #e61e46);
+}
+
+.jp-AdvancedHtml-swatch-green {
+  --jp-AdvancedHtml-swatch-rim: var(
+    --jp-AdvancedHtml-swatch-edge-green,
+    #179f26
+  );
+  --jp-AdvancedHtml-swatch-fill: var(
+    --jp-AdvancedHtml-swatch-fill-green,
+    #1ed232
+  );
+
+  background-color: var(--jp-AdvancedHtml-swatch-green, #179f26);
+}
+
+/*
+ | The panel is a column of a fixed width, expanded or minimap. The width is
+ | set here rather than by the layout, so the box that holds the page and
+ | the panel side by side gives the panel exactly this and the rendered
+ | Markdown keeps the whole of the rest.
+ */
+
+.jp-AdvancedHtml-notes {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  max-width: 260px;
+  overflow: hidden;
+  color: var(--jp-ui-font-color1);
+  font-size: var(--jp-ui-font-size1);
+  background-color: var(--jp-layout-color1);
+  border-left: 1px solid var(--jp-border-color2);
+}
+
+.jp-AdvancedHtml-notes.jp-AdvancedHtml-notes-minimap {
+  min-width: 28px;
+  max-width: 28px;
+}
+
+.jp-AdvancedHtml-notesHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+
+  /* 1 px at the left puts the collapse caret over the rows' swatches. */
+  padding: 4px 6px 4px 1px;
+  border-bottom: 1px solid var(--jp-border-color2);
+}
+
+.jp-AdvancedHtml-notesCount {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/*
+ | The Show hidden control, a toggle text button beside the count
+ | (ACC-NOTES-155, ACC-NOTES-174). The header has no room for the base size,
+ | so this one button keeps the smaller one (ACC-NOTES-165).
+ */
+.jp-AdvancedHtml-notesShowClosed {
+  margin-left: 4px;
+  font-size: var(--jp-ui-font-size0);
+}
+
+.jp-AdvancedHtml-notesShowClosed[aria-pressed='true'] {
+  background-color: var(--jp-layout-color2);
+  border-color: var(--jp-brand-color1);
+}
+
+.jp-AdvancedHtml-notes-minimap .jp-AdvancedHtml-notesCount,
+.jp-AdvancedHtml-notes-minimap .jp-AdvancedHtml-notesShowClosed {
+  display: none;
+}
+
+/*
+ | The minimap strip has room for icons alone: its header stacks its controls,
+ | the hide control at the top, then the expand control. The expand control
+ | exists only there, since the expanded panel is already what it would open;
+ | the collapse control is its mirror, shown in the expanded state alone, at
+ | the left edge of the header where it reads as collapse and not as a second
+ | close. The plus is shown in the expanded state alone as well, so the strip
+ | offers no control that adds a note, and the Show closed control goes with
+ | the count.
+ */
+.jp-AdvancedHtml-notes-minimap .jp-AdvancedHtml-notesHeader {
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+/* The icon controls are a 24 px pointer target, the WCAG 2.5.8 minimum. */
+.jp-AdvancedHtml-notesClose,
+.jp-AdvancedHtml-notesAdd,
+.jp-AdvancedHtml-notesCollapse,
+.jp-AdvancedHtml-notesExpand {
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 4px;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.jp-AdvancedHtml-notesExpand svg,
+.jp-AdvancedHtml-notesCollapse svg,
+.jp-AdvancedHtml-notesClose svg,
+.jp-AdvancedHtml-notesAdd svg,
+.jp-AdvancedHtml-notesBadge svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The icons of a row are 16 px in a 24 px target (ACC-NOTES-165). */
+.jp-AdvancedHtml-notesRemove svg,
+.jp-AdvancedHtml-notesCloseMark svg,
+.jp-AdvancedHtml-notesEntryIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.jp-AdvancedHtml-notesClose {
+  display: inline-flex;
+}
+
+.jp-AdvancedHtml-notesAdd,
+.jp-AdvancedHtml-notesExpand,
+.jp-AdvancedHtml-notesCollapse {
+  display: none;
+}
+
+.jp-AdvancedHtml-notes-minimap .jp-AdvancedHtml-notesExpand,
+.jp-AdvancedHtml-notes-expanded .jp-AdvancedHtml-notesAdd,
+.jp-AdvancedHtml-notes-expanded .jp-AdvancedHtml-notesCollapse {
+  display: inline-flex;
+}
+
+.jp-AdvancedHtml-notes-minimap .jp-AdvancedHtml-notesClose {
+  order: -1;
+}
+
+.jp-AdvancedHtml-notesButton {
+  min-height: 24px;
+  padding: 2px 8px;
+  color: inherit;
+
+  /* The size the row's note text is set in (ACC-NOTES-165). */
+  font-size: var(--jp-ui-font-size1);
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 2px;
+}
+
+/* The removal control that takes the whole mark. */
+.jp-AdvancedHtml-notesRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 1px 4px;
+}
+
+/* The eye that closes or reopens the mark, drawn as the removal is. */
+.jp-AdvancedHtml-notesCloseMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 1px 4px;
+}
+
+.jp-AdvancedHtml-notesList {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.jp-AdvancedHtml-notesRow {
+  padding: 6px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--jp-border-color2);
+}
+
+.jp-AdvancedHtml-notesRow-selected {
+  background-color: var(--jp-layout-color2);
+}
+
+.jp-AdvancedHtml-notesHead {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+/*
+ | The square of a row takes the hue as its fill and the rim carries the
+ | contrast bar (DEF-NOTES-112). The rim is an inset shadow and not a border,
+ | so the square keeps the ten pixels the menu icon is drawn to.
+ */
+.jp-AdvancedHtml-notesSwatch {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  background-color: var(--jp-AdvancedHtml-swatch-fill);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--jp-AdvancedHtml-swatch-rim);
+}
+
+.jp-AdvancedHtml-notesPassage {
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-style: italic;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.jp-AdvancedHtml-notesState {
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size0);
+}
+
+/* The word a document note's row shows in place of a passage. */
+.jp-AdvancedHtml-notesDocument {
+  font-style: normal;
+  font-weight: 600;
+}
+
+/*
+ | The notes badge sits over the top right corner of the page while the
+ | panel is hidden, clear of the scrollbar: muted while the document holds no
+ | note, in the ordinary chrome colour while it holds one. It is a child of
+ | the box beside the page, never of the rendered root. The hidden
+ | attribute must win over the inline-flex below.
+ */
+.jp-AdvancedHtml-notesBadge {
+  position: absolute;
+  top: 4px;
+  right: 20px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  color: var(--jp-ui-font-color2);
+  cursor: pointer;
+  background: var(--jp-layout-color1);
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 2px;
+}
+
+.jp-AdvancedHtml-notesBadge[hidden] {
+  display: none;
+}
+
+.jp-AdvancedHtml-notesBadge-empty {
+  color: var(--jp-ui-font-color3);
+}
+
+.jp-AdvancedHtml-notesBadge svg [fill] {
+  fill: currentcolor;
+}
+
+.jp-AdvancedHtml-notesEntry {
+  /* The floated icons are part of the entry's own height. */
+  display: flow-root;
+  margin-top: 4px;
+}
+
+/*
+ | The edit icon and the x sit at the right of the entry's first line
+ | (ACC-NOTES-164), floated so the note text below them keeps the full width
+ | of the entry (ACC-NOTES-165). They are drawn only while the pointer is on
+ | the note they belong to, or while one of them holds the focus, so a thread
+ | at rest is its text alone (ACC-NOTES-176). Transparent and not hidden:
+ | visibility or display would take the buttons out of the tab order and put
+ | them beyond the keyboard, which never hovers.
+ */
+.jp-AdvancedHtml-notesEntryIcons {
+  float: right;
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+  opacity: 0;
+}
+
+.jp-AdvancedHtml-notesEntryIcons:focus-within,
+.jp-AdvancedHtml-notesEntry:hover .jp-AdvancedHtml-notesEntryIcons {
+  opacity: 1;
+}
+
+.jp-AdvancedHtml-notesEntryIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--jp-ui-font-color2);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.jp-AdvancedHtml-notesAuthor {
+  font-weight: bold;
+}
+
+.jp-AdvancedHtml-notesStamp {
+  margin-left: 4px;
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size0);
+}
+
+.jp-AdvancedHtml-notesText {
+  white-space: pre-wrap;
+}
+
+/*
+ | The row shows the hand, and a click on its padding opens it. The gaps
+ | inside the controls row and the note form act on nothing, so they show
+ | the arrow, and the text field keeps its own I-beam.
+ */
+.jp-AdvancedHtml-notesControls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+  cursor: default;
+}
+
+/*
+ | The swatch of a row is the button that rolls the other colours down under
+ | it (ACC-NOTES-173). The button is a 24 px pointer target (ACC-NOTES-165)
+ | around the 10 px swatch, pulled back into the line so the head keeps its
+ | height, and the list is laid over the rows below.
+ */
+.jp-AdvancedHtml-notesColour {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.jp-AdvancedHtml-notesSwatchButton,
+.jp-AdvancedHtml-notesColourOption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 2px;
+}
+
+.jp-AdvancedHtml-notesSwatchButton {
+  margin: -3px 0;
+}
+
+/*
+ | The eye and the removal control stand at the right of the top line
+ | (ACC-NOTES-132), 24 px targets pulled back into the line as the swatch is,
+ | so the line of an open row keeps the height of a closed row's and its
+ | passage text does not move as the row opens.
+ */
+.jp-AdvancedHtml-notesHead .jp-AdvancedHtml-notesButton {
+  align-self: center;
+  margin: -3px 0;
+}
+
+.jp-AdvancedHtml-notesSwatchButton:hover,
+.jp-AdvancedHtml-notesColourOption:hover {
+  background-color: var(--jp-layout-color2);
+}
+
+.jp-AdvancedHtml-notesColours {
+  position: absolute;
+
+  /* The swatch button is pulled 3px below the line it sits on, so the list
+     starts that much lower and covers no part of the button. */
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--jp-layout-color1);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 2px;
+  animation: jp-AdvancedHtml-roll-down 120ms ease-out;
+}
+
+@keyframes jp-AdvancedHtml-roll-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+.jp-AdvancedHtml-notesForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  cursor: default;
+}
+
+/*
+ | The note field is a rounded box with room around the text and no resize
+ | grip. While it holds the focus its border takes the brand colour, in place
+ | of the browser's outline and with no ring around the box. The text being
+ | written is in the font and at the size of the notes shown in the rows. The
+ | box grows with its content (NotesPanel._form sets its height), so it never
+ | needs a scrollbar of its own. Both axes are hidden, not the vertical one
+ | alone: a lone `overflow-y` leaves `overflow-x` at the box's own `auto`, and
+ | a platform whose text measures a fraction of a pixel past the box then
+ | draws a bar along the bottom as soon as a note is typed (DEF-NOTES-115).
+ */
+.jp-AdvancedHtml-notesForm textarea {
+  width: 100%;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+  cursor: auto;
+  background: var(--jp-layout-color0);
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 120ms ease;
+}
+
+/* The colour JupyterLab's own input placeholders use. */
+.jp-AdvancedHtml-notesForm textarea::placeholder {
+  color: var(--jp-ui-font-color2);
+}
+
+.jp-AdvancedHtml-notesForm textarea:focus {
+  border-color: var(--jp-brand-color1);
+}
+
+/*
+ | The row that takes the focus after a rebuild draws the focus ring
+ | JupyterLab's own buttons draw, not the browser's.
+ */
+
+.jp-AdvancedHtml-notesRow:focus-visible {
+  outline: var(--jp-focus-outline-width) solid var(--jp-focus-outline-color);
+  outline-offset: -1px;
+}
+
+/*
+ | The two ways out of the note field sit at the right edge below it, Cancel
+ | then Save, in the same quiet look as Add note and the other panel buttons.
+ */
+.jp-AdvancedHtml-notesFormButtons {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+/*
+ | The minimap keeps only where the marks sit: one tick per mark, in the mark's
+ | own colour, at the mark's own place down the document.
+ */
+
+.jp-AdvancedHtml-notesMap {
+  position: relative;
+  flex: 1 1 auto;
+}
+
+.jp-AdvancedHtml-notesTick {
+  position: absolute;
+  background-color: var(--jp-AdvancedHtml-mark-wash);
+  right: 6px;
+  left: 6px;
+  box-sizing: border-box;
+  height: 8px;
+  cursor: pointer;
+
+  /* The tick is a faint wash, the mark's own; the border is what the eye
+     finds on the strip. */
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 2px;
+}
+
+/*
+ * A closed mark shown on request: its tick's colour gives way to a grey wash
+ * with no hue, as its passage does on the page, and its row's passage takes
+ * the secondary text colour. `body` puts the rules level with the dark-theme
+ * colour rules above, and the later source order wins (ACC-NOTES-155).
+ */
+body .jp-AdvancedHtml-notesTick.jp-AdvancedHtml-mark-closed {
+  --jp-AdvancedHtml-mark-wash: rgb(128 128 128 / 12%);
+}
+
+body[data-jp-theme-light='false']
+  .jp-AdvancedHtml-notesTick.jp-AdvancedHtml-mark-closed {
+  --jp-AdvancedHtml-mark-wash: rgb(200 200 200 / 12%);
+}
+
+.jp-AdvancedHtml-notesRow-closed .jp-AdvancedHtml-notesPassage {
+  color: var(--jp-ui-font-color2);
+}

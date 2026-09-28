@@ -1,0 +1,279 @@
+import { expect, test } from '@jupyterlab/galata';
+import * as fs from 'fs';
+import * as path from 'path';
+
+import {
+  FRAME,
+  fileText,
+  frameText,
+  inFrame,
+  labFixtures,
+  onDisk,
+  openViewer,
+  rows,
+  fixture,
+  settings,
+  trust,
+  waitForText,
+  writeFile
+} from './helpers';
+
+/**
+ * The viewer against a real lab: what the frame loads, trust and refresh as
+ * the built-in viewer has them, and a file another process rewrites.
+ */
+
+test.use({ ...labFixtures, mockSettings: settings() });
+
+/** Don't load the lab before a test that listens from the first message. */
+test.describe('activation', () => {
+  test.use({ autoGoto: false });
+
+  test('logs its activation message once', async ({ page }) => {
+    const logs: string[] = [];
+    page.on('console', message => logs.push(message.text()));
+    await page.goto();
+    expect(
+      logs.filter(
+        text =>
+          text ===
+          'JupyterLab extension jupyterlab_advanced_html_viewer_extension is activated!'
+      )
+    ).toHaveLength(1);
+  });
+});
+
+const SCRIPTED = `<!DOCTYPE html>
+<html><body>
+<p id="file">Text written in the file.</p>
+<script>
+  const added = document.createElement('p');
+  added.id = 'added';
+  added.textContent = 'Written by a script.';
+  document.body.appendChild(added);
+</script>
+</body></html>
+`;
+
+test('ACC-VIEW-1 opens an html file in the advanced viewer by default', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'default');
+  writeFile(file, SCRIPTED);
+  // The lab's own refresh command: this workstation's file browser toolbar
+  // carries no button galata's refresh helper could press.
+  await page.evaluate(() =>
+    (window as any).jupyterapp.commands.execute('filebrowser:refresh')
+  );
+  await page
+    .getByRole('region', { name: 'File Browser Section' })
+    .getByRole('listitem', { name: /^Name: default\.html/ })
+    .dblclick();
+  await expect(page.locator('.jp-AdvancedHTMLViewer')).toBeVisible();
+  await waitForText(page, 'Text written in the file.');
+  const factories: string[] = await page.evaluate((target: string) => {
+    const registry = (window as any).jupyterapp.docRegistry;
+    return registry
+      .preferredWidgetFactories(target)
+      .map((factory: any) => factory.name);
+  }, file);
+  expect(factories[0]).toBe('Advanced HTML Viewer');
+  expect(factories).toContain('HTML Viewer');
+});
+
+test('ACC-VIEW-2 runs no page script while untrusted', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'untrusted');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  expect(await frameText(page)).not.toContain('Written by a script.');
+  const sandbox = await page.locator(FRAME).getAttribute('sandbox');
+  expect(sandbox?.split(' ').sort()).toEqual([
+    'allow-downloads',
+    'allow-same-origin'
+  ]);
+  await expect(
+    page
+      .locator('.jp-AdvancedHTMLViewer .jp-Toolbar')
+      .getByText('Trust HTML', { exact: true })
+  ).toBeVisible();
+});
+
+test('ACC-VIEW-3 Trust HTML runs the scripts', async ({ page, tmpPath }) => {
+  const file = fixture(tmpPath, 'trust');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  await trust(page);
+  await waitForText(page, 'Written by a script.');
+  const sandbox = await page.locator(FRAME).getAttribute('sandbox');
+  expect(sandbox?.split(' ').sort()).toEqual([
+    'allow-downloads',
+    'allow-popups',
+    'allow-same-origin',
+    'allow-scripts'
+  ]);
+});
+
+test('ACC-VIEW-4 Distrust HTML stops the scripts', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'distrust');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  await trust(page);
+  await waitForText(page, 'Written by a script.');
+  await page
+    .locator('.jp-AdvancedHTMLViewer .jp-Toolbar')
+    .getByText('Distrust HTML', { exact: true })
+    .click();
+  await expect(
+    page
+      .locator('.jp-AdvancedHTMLViewer .jp-Toolbar')
+      .getByText('Trust HTML', { exact: true })
+  ).toBeVisible();
+  await expect
+    .poll(() => frameText(page))
+    .not.toContain('Written by a script.');
+  await waitForText(page, 'Text written in the file.');
+});
+
+test('ACC-VIEW-5 Refresh renders the file again', async ({ page, tmpPath }) => {
+  const file = fixture(tmpPath, 'refresh');
+  writeFile(
+    file,
+    '<!DOCTYPE html><p id="n"></p><script>document.getElementById("n").textContent = "Number " + Math.random();</script>'
+  );
+  await openViewer(page, file, '');
+  await trust(page);
+  await waitForText(page, 'Number ');
+  const first = await frameText(page);
+  await page
+    .locator(
+      '.jp-AdvancedHTMLViewer .jp-Toolbar [title="Rerender HTML Document"]'
+    )
+    .click();
+  await expect.poll(() => frameText(page)).not.toBe(first);
+  await waitForText(page, 'Number ');
+});
+
+test('ACC-VIEW-6 resolves a relative address against the file', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'relative');
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  fs.mkdirSync(path.dirname(onDisk(file)), { recursive: true });
+  fs.writeFileSync(path.join(path.dirname(onDisk(file)), 'pixel.png'), png);
+  writeFile(
+    file,
+    '<!DOCTYPE html><p>Picture:</p><img id="pic" src="pixel.png">'
+  );
+  await openViewer(page, file, 'Picture:');
+  await expect
+    .poll(() =>
+      inFrame<number>(page, 'return doc.getElementById("pic").naturalWidth;')
+    )
+    .toBeGreaterThan(0);
+});
+
+test('ACC-VIEW-7 keeps the page in standards mode', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'standards');
+  writeFile(
+    file,
+    '<!DOCTYPE html>\n<html><body><p>Standards.</p></body></html>\n'
+  );
+  await openViewer(page, file, 'Standards.');
+  expect(await inFrame<string>(page, 'return doc.compatMode;')).toBe(
+    'CSS1Compat'
+  );
+});
+
+test('ACC-VIEW-9 renders again after the text changes in an editor', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'edit');
+  writeFile(file, '<!DOCTYPE html>\n<p>Before the edit.</p>\n');
+  await openViewer(page, file, 'Before the edit.');
+  await page.evaluate(async (target: string) => {
+    await (window as any).jupyterapp.commands.execute('docmanager:open', {
+      path: target,
+      factory: 'Editor',
+      mode: 'split-right'
+    });
+  }, file);
+  const editor = page.locator('.jp-FileEditor .cm-content');
+  await expect(editor).toBeVisible();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('<p>Typed in the editor.</p>');
+  await waitForText(page, 'Typed in the editor.');
+});
+
+test('ACC-VIEW-10 keeps the scroll position across a render', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'scroll');
+  const long = Array.from({ length: 200 }, (_, i) => `<p>Line ${i}</p>`).join(
+    '\n'
+  );
+  writeFile(file, `<!DOCTYPE html>\n${long}\n`);
+  await openViewer(page, file, 'Line 0');
+  await inFrame(page, 'win.scrollTo(0, 400);');
+  writeFile(file, `<!DOCTYPE html>\n${long}\n<p>Added at the end.</p>\n`);
+  await waitForText(page, 'Added at the end.');
+  await expect
+    .poll(() => inFrame<number>(page, 'return win.scrollY;'))
+    .toBeGreaterThan(395);
+  expect(await inFrame<number>(page, 'return win.scrollY;')).toBeLessThan(405);
+});
+
+test('ACC-LIVE-11 shows a change another process wrote without Refresh', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'live');
+  writeFile(file, '<!DOCTYPE html>\n<p>The first version.</p>\n');
+  await openViewer(page, file, 'The first version.');
+  writeFile(file, '<!DOCTYPE html>\n<p>The second version.</p>\n');
+  await expect
+    .poll(() => frameText(page), { timeout: 4000 })
+    .toContain('The second version.');
+});
+
+test('ACC-LIVE-12 shows a reply written to the file without loading the page again', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'reply');
+  const id = '1b4e28ba-2fa1-41d2-883f-0016d3cca427';
+  const noted = `<!DOCTYPE html>\n<p>Some <!-- mark:${id} note colour=yellow\n@kj 2026-09-28T10:00:00Z: Is this right?\n-->words<!-- /mark:${id} --> here.</p>\n`;
+  writeFile(file, noted);
+  await openViewer(page, file, 'Some words here.');
+  await expect(rows(page)).toHaveCount(1);
+  await inFrame(page, 'win.__probe = 42;');
+  writeFile(
+    file,
+    noted.replace(
+      'Is this right?\n',
+      'Is this right?\n@claude 2026-09-28T10:05:00Z: Yes, it is.\n'
+    )
+  );
+  await rows(page).first().click();
+  await expect(rows(page).first()).toContainText('Yes, it is.', {
+    timeout: 6000
+  });
+  expect(await inFrame<number>(page, 'return win.__probe;')).toBe(42);
+  expect(fileText(file)).toContain('@claude');
+});

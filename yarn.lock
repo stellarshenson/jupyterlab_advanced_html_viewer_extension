@@ -2214,7 +2214,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/apputils@npm:^4.7.4":
+"@jupyterlab/apputils@npm:^4.7.0, @jupyterlab/apputils@npm:^4.7.4":
   version: 4.7.4
   resolution: "@jupyterlab/apputils@npm:4.7.4"
   dependencies:
@@ -2406,7 +2406,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/docregistry@npm:^4.6.4":
+"@jupyterlab/docregistry@npm:^4.6.0, @jupyterlab/docregistry@npm:^4.6.4":
   version: 4.6.4
   resolution: "@jupyterlab/docregistry@npm:4.6.4"
   dependencies:
@@ -2476,6 +2476,23 @@ __metadata:
     "@lumino/widgets": ^2.8.0
     react: ^18.2.0
   checksum: 0f77fa6b73696f33f747dea7f80e30e2c4d0a7e87598018453ded76adbd1e422350bb97ac582e4e8ff849c15025a91a70fcb4b42af6533686111fbba9cac6b9d
+  languageName: node
+  linkType: hard
+
+"@jupyterlab/htmlviewer@npm:^4.6.0":
+  version: 4.6.4
+  resolution: "@jupyterlab/htmlviewer@npm:4.6.4"
+  dependencies:
+    "@jupyterlab/apputils": ^4.7.4
+    "@jupyterlab/coreutils": ^6.6.4
+    "@jupyterlab/docregistry": ^4.6.4
+    "@jupyterlab/translation": ^4.6.4
+    "@jupyterlab/ui-components": ^4.6.4
+    "@lumino/coreutils": ^2.2.2
+    "@lumino/signaling": ^2.1.5
+    "@lumino/widgets": ^2.8.0
+    react: ^18.2.0
+  checksum: 538ef4f9325789dec9b4c27f17b89afab3debd968050d8b9fda50b4d0afa65c9d323836c50838d5f943c5459f82ded9dbcf638499836b7dfa4cdb97b48a4dfcb
   languageName: node
   linkType: hard
 
@@ -2774,7 +2791,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/translation@npm:^4.6.4":
+"@jupyterlab/translation@npm:^4.6.0, @jupyterlab/translation@npm:^4.6.4":
   version: 4.6.4
   resolution: "@jupyterlab/translation@npm:4.6.4"
   dependencies:
@@ -2787,7 +2804,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/ui-components@npm:^4.6.4":
+"@jupyterlab/ui-components@npm:^4.6.0, @jupyterlab/ui-components@npm:^4.6.4":
   version: 4.6.4
   resolution: "@jupyterlab/ui-components@npm:4.6.4"
   dependencies:
@@ -3026,7 +3043,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/disposable@npm:^1.10.0 || ^2.0.0, @lumino/disposable@npm:^2.1.5, @lumino/disposable@npm:^2.1.6":
+"@lumino/disposable@npm:^1.10.0 || ^2.0.0, @lumino/disposable@npm:^2.1.0, @lumino/disposable@npm:^2.1.5, @lumino/disposable@npm:^2.1.6":
   version: 2.1.6
   resolution: "@lumino/disposable@npm:2.1.6"
   dependencies:
@@ -3059,7 +3076,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/messaging@npm:^2.0.4, @lumino/messaging@npm:^2.0.5":
+"@lumino/messaging@npm:^2.0.0, @lumino/messaging@npm:^2.0.4, @lumino/messaging@npm:^2.0.5":
   version: 2.0.5
   resolution: "@lumino/messaging@npm:2.0.5"
   dependencies:
@@ -3087,7 +3104,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/signaling@npm:^1.10.0 || ^2.0.0, @lumino/signaling@npm:^2.1.5, @lumino/signaling@npm:^2.1.6":
+"@lumino/signaling@npm:^1.10.0 || ^2.0.0, @lumino/signaling@npm:^2.1.0, @lumino/signaling@npm:^2.1.5, @lumino/signaling@npm:^2.1.6":
   version: 2.1.6
   resolution: "@lumino/signaling@npm:2.1.6"
   dependencies:
@@ -7624,10 +7641,19 @@ __metadata:
     "@jupyter/builder": ^1.2.0
     "@jupyter/eslint-plugin": ^1.3.0
     "@jupyterlab/application": ^4.6.0
+    "@jupyterlab/apputils": ^4.7.0
     "@jupyterlab/coreutils": ^6.6.0
+    "@jupyterlab/docregistry": ^4.6.0
+    "@jupyterlab/htmlviewer": ^4.6.0
     "@jupyterlab/services": ^7.6.0
     "@jupyterlab/settingregistry": ^4.6.0
     "@jupyterlab/testutils": ^4.6.0
+    "@jupyterlab/translation": ^4.6.0
+    "@jupyterlab/ui-components": ^4.6.0
+    "@lumino/disposable": ^2.1.0
+    "@lumino/messaging": ^2.0.0
+    "@lumino/signaling": ^2.1.0
+    "@lumino/widgets": ^2.8.0
     "@types/jest": ^29.5.0
     "@types/json-schema": ^7.0.0
     "@types/react": ^18.3.0
@@ -7639,7 +7665,9 @@ __metadata:
     jest: ^29.7.0
     mkdirp: ^1.0.0
     npm-run-all2: ^7.0.0
+    parse5: ^7.3.0
     prettier: ^3.9.0
+    react: ^18.2.0
     rimraf: ^5.0.0
     stylelint: ^15.11.0
     stylelint-config-recommended: ^13.0.0
@@ -8444,7 +8472,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"parse5@npm:^7.0.0, parse5@npm:^7.1.1":
+"parse5@npm:^7.0.0, parse5@npm:^7.1.1, parse5@npm:^7.3.0":
   version: 7.3.0
   resolution: "parse5@npm:7.3.0"
   dependencies:
