@@ -7,7 +7,8 @@
  * itself, the grammar of the advanced Markdown viewer, so the file alone
  * carries the whole conversation and a browser shows the page unchanged. Only
  * text written in the file takes a mark: text the page's scripts produce, and
- * whatever an iframe of the page shows, does not (see src/origin.ts).
+ * whatever an iframe, object or embed of the page shows, does not (see
+ * src/origin.ts).
  *
  * This module is the wiring: the widget factory, which is the default for
  * .html files, the commands the context menu, the palette and the keyboard
@@ -331,7 +332,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
           properties: { colour: { type: 'string', enum: MARK_COLOURS } }
         }
       },
-      isEnabled: () => marking(false) !== null,
+      // The key runs on a refused selection too, to say why it takes no
+      // mark; the palette offers the command only for file text.
+      isEnabled: args =>
+        (args._luminoEvent as { type?: string } | undefined)?.type ===
+        'keybinding'
+          ? !!target(false)?.notes.selection
+          : marking(false) !== null,
       execute: async args => {
         const attachment = target(false);
         if (attachment) {

@@ -44,6 +44,14 @@ Making, painting and opening marks in the rendered page
   - root-cause: 2026-09-28T15:34:35Z @kj the lab keeps the last contextmenu event and never clears it; target() resolved every command through app.contextMenuHitTest
   - log: 2026-09-28T15:34:35Z @kj added
   - log: 2026-09-28T15:40:31Z @kj closed: fixed: keyboard mark acts on its own viewer; commands consult the context menu only when run from it; src/index.ts
+- [x] `DEF-MARK-7` **Key outside the frame is silent on a refused selection** - MINOR; focus in the viewer outside the frame, page holds a refused selection: Accel Shift M shows no notice, only a console warning; contradicts ACC-ORIGIN-21
+  - evidence: Galata 'DEF-MARK-7 says why when the key is pressed outside the frame' in ui-tests/tests/origin.spec.ts, red on build 0.1.8 (no notice), green on 0.1.9, also asserts the palette call stays disabled; build 0.1.9: Galata 61 of 61, jest 64 of 64, pytest 8 of 8
+  - related: ACC-ORIGIN-21 - the notice it breaks; ACC-MARK-40 - the palette rule the fix keeps
+  - repro: trusted page, select script text, focus a viewer toolbar button, press Control Shift M
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-09-28T19:15:21Z @kj Lumino runs a key binding only when isEnabled is true; markSelection is enabled only for file text (ACC-MARK-40), so markSelected and its notice never run
+  - log: 2026-09-28T19:15:21Z @kj added
+  - log: 2026-09-28T19:23:40Z @kj closed: fixed
 
 ## Following the file `LIVE`
 

@@ -813,7 +813,10 @@ export class NotesController implements IDisposable {
     this._showSelection();
   }
 
-  /** The two classes the context menu is offered by. */
+  /**
+   * Mark on the viewer whether the page holds a selection of file text or a
+   * refused one.
+   */
   private _showSelection(): void {
     const result = this._selection?.result;
     this._viewer.toggleClass(SELECTING_CLASS, !!result && 'span' in result);

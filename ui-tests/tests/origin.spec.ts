@@ -219,6 +219,40 @@ test('ACC-ORIGIN-21 says why the keyboard marks no page content', async ({
   expect(fileText(file)).toBe(before);
 });
 
+test('DEF-MARK-7 says why when the key is pressed outside the frame', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'keys-outside');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  await trust(page);
+  await waitForText(page, 'Written by a script.');
+  const before = fileText(file);
+  await select(page, 'Written by a script.');
+  await expect(
+    page.locator('.jp-AdvancedHTMLViewer:not(.lm-mod-hidden)')
+  ).toHaveClass(/jp-AdvancedHtml-selectingPage/);
+  // Focus moves to the viewer's toolbar; the page keeps its selection.
+  await page
+    .locator('.jp-AdvancedHTMLViewer .jp-Toolbar')
+    .getByRole('button', { name: 'Distrust HTML' })
+    .focus();
+  await page.keyboard.press('Control+Shift+M');
+  await expect(
+    page.getByText('Only text written in the file takes a comment.')
+  ).toBeVisible();
+  expect(fileText(file)).toBe(before);
+  // The palette still offers the command only for file text.
+  expect(
+    await page.evaluate(() =>
+      (window as any).jupyterapp.commands.isEnabled(
+        'advanced-html-viewer:mark-selection'
+      )
+    )
+  ).toBe(false);
+});
+
 test('ACC-ORIGIN-22 marks the text of a noscript element while untrusted', async ({
   page,
   tmpPath

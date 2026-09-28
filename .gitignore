@@ -132,3 +132,6 @@ dmypy.json
 logs/
 
 tmp/
+
+# Jest JUnit report
+junit.xml
