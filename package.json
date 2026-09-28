@@ -1,6 +1,6 @@
 {
     "name": "jupyterlab_advanced_html_viewer_extension",
-    "version": "0.1.8",
+    "version": "1.0.1",
     "description": "HTML viewer with trust, refresh, marks and notes stored in the file",
     "keywords": [
         "jupyter",
