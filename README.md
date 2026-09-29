@@ -28,7 +28,14 @@ The skill in `.agents/skills/jupyterlab-advanced-html-viewer-extension` teaches 
 - answer and close your comments
 - watch a file for new comments, with the bundled `scripts/watch-marks.py`
 
-Agents that read `.agents/skills` find it in a clone of this repository. The skill is not part of the installed package. To use it in Claude Code, run this from the root of the clone:
+`pip install` puts a copy in `share/jupyter/agents/skills/` under the Python environment. No agent reads that directory, so link it into the agent skills directory, with the Python that runs the lab:
+
+```bash
+mkdir -p ~/.agents/skills
+ln -s "$(python -c 'import sys; print(sys.prefix)')/share/jupyter/agents/skills/jupyterlab-advanced-html-viewer-extension" ~/.agents/skills/jupyterlab-advanced-html-viewer-extension
+```
+
+Agents that read `.agents/skills` also find it in a clone of this repository; to make it available to Claude Code everywhere, link it into the skills directory from the root of the clone:
 
 ```bash
 mkdir -p ~/.claude/skills && ln -sfn "$PWD/.agents/skills/jupyterlab-advanced-html-viewer-extension" ~/.claude/skills/jupyterlab-advanced-html-viewer-extension

@@ -2,14 +2,20 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.4] - 2026-09-29
+
+### Fixed
+
+- `pip install` now installs the agent skill, `SKILL.md` and `scripts/watch-marks.py`, under `share/jupyter/agents/skills/jupyterlab-advanced-html-viewer-extension` in the Python environment; 1.0.2 carried it only in the repository. The README gives the line that links the installed copy into `~/.agents/skills`
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.2] - 2026-09-29
 
 ### Added
 
 - Agent skill in `.agents/skills/jupyterlab-advanced-html-viewer-extension`: an AI assistant marks text written in the HTML file in six colours, recolours or hides a mark, comments on a passage or on the whole page, and answers or closes your comments, with markers placed so the page looks the same
 - The skill's `scripts/watch-marks.py` watches HTML files and reports each comment line you add, never the assistant's own lines, a hidden mark or a change of colour; the README gives the line that links the skill into Claude Code
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.1] - 2026-09-28
 

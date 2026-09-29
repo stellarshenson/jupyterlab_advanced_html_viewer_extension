@@ -1,4 +1,5 @@
-"""Tests of the watch script the jupyterlab-advanced-html-viewer-extension agent skill ships.
+"""Tests of the jupyterlab-advanced-html-viewer-extension agent skill: its watch script, and
+the copy of the skill the wheel installs.
 
 The script lives with the skill in .agents/skills, outside the package, so it is loaded
 from the repository by path. Only its pure `scan` is tested: the loop around it reads
@@ -6,11 +7,11 @@ files and sleeps.
 """
 import importlib.util
 import pathlib
+import sys
 
-SCRIPT = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / ".agents/skills/jupyterlab-advanced-html-viewer-extension/scripts/watch-marks.py"
-)
+NAME = "jupyterlab-advanced-html-viewer-extension"
+SKILL = pathlib.Path(__file__).resolve().parents[2] / ".agents" / "skills" / NAME
+SCRIPT = SKILL / "scripts" / "watch-marks.py"
 SPEC = importlib.util.spec_from_file_location("watch_marks", SCRIPT)
 watch_marks = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(watch_marks)
@@ -119,3 +120,10 @@ def test_a_line_the_user_adds_before_my_next_line_is_reported():
     events, _ = watch_marks.scan(known, marked(USER, MINE, line, later), "claude")
 
     assert events == [f"reply {ID[:8]} | {line}"]
+
+
+def test_pip_install_ships_the_skill():
+    # ACC-AGENT-69: the wheel puts the skill under the environment, outside the Python package
+    installed = pathlib.Path(sys.prefix, "share", "jupyter", "agents", "skills", NAME)
+    for part in ("SKILL.md", "scripts/watch-marks.py"):
+        assert (installed / part).read_text() == (SKILL / part).read_text()

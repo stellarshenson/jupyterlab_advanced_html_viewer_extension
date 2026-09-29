@@ -120,4 +120,12 @@ the skill that lets an AI assistant mark, comment and watch the file on disk
   - root-cause: 2026-09-29T13:06:43Z @kj the port dropped the Markdown skill's escape rule together with the pipe rule HTML does not need
   - log: 2026-09-29T13:06:43Z @kj added
   - log: 2026-09-29T13:11:49Z @kj closed
+- [x] `DEF-AGENT-10` **release 1.0.2 does not ship the skill** - MAJOR; the 1.0.2 wheel and sdist install carry no agent skill: pyproject.toml has no shared-data entry for .agents/skills, so an installed lab has no SKILL.md to link, as the jupyterlab-extension skill requires
+  - evidence: pyproject.toml shared-data maps the skill to share/jupyter/agents/skills; 1.0.4 on PyPI carries SKILL.md and watch-marks.py there; test_pip_install_ships_the_skill guards it
+  - related: ACC-AGENT-69
+  - repro: pip install jupyterlab_advanced_html_viewer_extension==1.0.2; ls $(python -c 'import sys;print(sys.prefix)')/share/jupyter/agents/skills - absent
+  - test-tags: UNIT
+  - root-cause: 2026-09-29T20:02:36Z @kj the skill was built to the earlier rule that it stays out of the wheel; the rule now maps it as wheel shared-data
+  - log: 2026-09-29T20:02:36Z @kj added
+  - log: 2026-09-29T20:11:10Z @kj closed
 

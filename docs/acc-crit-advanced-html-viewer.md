@@ -468,4 +468,10 @@ the skill that lets an AI assistant mark, comment and watch the file on disk
   - log: 2026-09-29T12:39:22Z @kj added
   - log: 2026-09-29T13:11:49Z @kj closed
   - log: 2026-09-29T13:12:05Z @kj edited evidence "jest src/__tests__/skill.spec.ts 12/12 (examples read back and parse unchanged; stated rules), 3 examples broken on purpose fail 3; pytest test_watch_marks.py 10/10; Galata ui-tests/tests/skill.spec.ts 4/4, fails 0 rows on a broken marker; Galata 65/65; review SHIP round 2" -> "jest src/__tests__/skill.spec.ts 11/11 (examples read back and parse unchanged; stated rules), 3 examples broken on purpose fail 3; pytest test_watch_marks.py 10/10; Galata ui-tests/tests/skill.spec.ts 4/4, fails 0 rows on a broken marker; Galata 65/65; review SHIP round 2"; reason: the Jest skill file holds 11 cases, not 12
+- [x] `ACC-AGENT-69` **pip install ships the agent skill** - MEDIUM; the wheel maps .agents/skills/jupyterlab-advanced-html-viewer-extension to share/jupyter/agents/skills/jupyterlab-advanced-html-viewer-extension under sys.prefix, SKILL.md and scripts/watch-marks.py alike, outside the Python package; README gives the link line for an installed lab and for a clone
+  - evidence: pytest test_pip_install_ships_the_skill passes on the installed build and fails with FileNotFoundError when the installed copy is moved away; published 1.0.4 wheel lists SKILL.md and scripts/watch-marks.py under .data/data/share/jupyter/agents/skills; pytest 19, jest 75, Galata 65
+  - test: pytest test_watch_marks.py compares SKILL.md and watch-marks.py under sys.prefix with the repository copies; unzip -l of the wheel lists both under .data/data/share
+  - test-tags: UNIT
+  - log: 2026-09-29T20:02:36Z @kj added
+  - log: 2026-09-29T20:11:10Z @kj closed
 

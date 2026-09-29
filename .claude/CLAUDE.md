@@ -61,6 +61,7 @@ DOM is never touched.
 - **CI/CD** - GitHub Actions plus jupyter-releaser under `.github/workflows/`
 - **Agent skill** (`.agents/skills/jupyterlab-advanced-html-viewer-extension/`) - `SKILL.md` tells an
   AI assistant how to write and answer the markers, `scripts/watch-marks.py` reports new comments;
+  the wheel installs the skill under `share/jupyter/agents/skills/` (shared-data in `pyproject.toml`);
   `src/__tests__/skill.spec.ts`, `tests/test_watch_marks.py` and `ui-tests/tests/skill.spec.ts` hold
   its examples to the viewer. A change to the marker grammar or to where markers go changes the skill
   in the same commit
