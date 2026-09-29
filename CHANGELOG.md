@@ -2,13 +2,19 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.5] - 2026-09-29
+
+### Fixed
+
+- The README now says that `pip install` puts the agent skill in `<sys.prefix>/share/jupyter/agents/skills/`, inside the Python environment, not in `~/.agents/skills`, and that you link it into `~/.agents/skills` yourself with the `ln -s` line it gives
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.4] - 2026-09-29
 
 ### Fixed
 
-- `pip install` now installs the agent skill, `SKILL.md` and `scripts/watch-marks.py`, under `share/jupyter/agents/skills/jupyterlab-advanced-html-viewer-extension` in the Python environment; 1.0.2 carried it only in the repository. The README gives the line that links the installed copy into `~/.agents/skills`
-
-<!-- <END NEW CHANGELOG ENTRY> -->
+- `pip install` now puts a copy of the agent skill, `SKILL.md` and `scripts/watch-marks.py`, in `<sys.prefix>/share/jupyter/agents/skills/jupyterlab-advanced-html-viewer-extension`; 1.0.2 carried it only in the repository. pip does not put it in `~/.agents/skills`, and no agent reads the installed copy until you link it there with the `ln -s` line in the README
 
 ## [1.0.2] - 2026-09-29
 

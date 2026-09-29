@@ -28,7 +28,7 @@ The skill in `.agents/skills/jupyterlab-advanced-html-viewer-extension` teaches 
 - answer and close your comments
 - watch a file for new comments, with the bundled `scripts/watch-marks.py`
 
-`pip install` puts a copy in `share/jupyter/agents/skills/` under the Python environment. No agent reads that directory, so link it into the agent skills directory, with the Python that runs the lab:
+`pip install` puts a copy in `<sys.prefix>/share/jupyter/agents/skills/`, inside the Python environment, not in `~/.agents/skills`. No agent reads that directory, so link the copy into `~/.agents/skills` yourself, with the Python that runs the lab:
 
 ```bash
 mkdir -p ~/.agents/skills
