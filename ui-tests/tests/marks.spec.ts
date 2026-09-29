@@ -14,6 +14,7 @@ import {
   menu,
   openMenu,
   openViewer,
+  painted,
   pointAt,
   rows,
   select,
@@ -43,16 +44,6 @@ const PAGE = `<!DOCTYPE html>
 
 const UUID =
   '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
-
-/** The text the page paints under a highlight name, one piece per range. */
-function painted(page: any, name: string): Promise<string[]> {
-  return inFrame<string[]>(
-    page,
-    `const found = win.CSS.highlights.get(arg);
-     return found ? Array.from(found).map(range => range.toString()) : [];`,
-    name
-  );
-}
 
 test('ACC-STORE-23 writes the two markers around the passage', async ({
   page,

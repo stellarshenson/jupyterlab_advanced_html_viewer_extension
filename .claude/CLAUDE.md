@@ -59,6 +59,11 @@ DOM is never touched.
 - **Tests** - pytest in `jupyterlab_advanced_html_viewer_extension/tests/`, Jest in
   `src/__tests__/`, Playwright/Galata in `ui-tests/`
 - **CI/CD** - GitHub Actions plus jupyter-releaser under `.github/workflows/`
+- **Agent skill** (`.agents/skills/jupyterlab-advanced-html-viewer-extension/`) - `SKILL.md` tells an
+  AI assistant how to write and answer the markers, `scripts/watch-marks.py` reports new comments;
+  `src/__tests__/skill.spec.ts`, `tests/test_watch_marks.py` and `ui-tests/tests/skill.spec.ts` hold
+  its examples to the viewer. A change to the marker grammar or to where markers go changes the skill
+  in the same commit
 
 **Feature specification** - criteria in `docs/acc-crit-advanced-html-viewer.md`, defects in
 `docs/defects-advanced-html-viewer.md`, both written and read only through `pm-tools`.

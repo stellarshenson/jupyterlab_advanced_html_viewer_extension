@@ -125,6 +125,16 @@ export function inFrame<T>(
   );
 }
 
+/** The text the page paints under a highlight name, one piece per range. */
+export function painted(page: any, name: string): Promise<string[]> {
+  return inFrame<string[]>(
+    page,
+    `const found = win.CSS.highlights.get(arg);
+     return found ? Array.from(found).map(range => range.toString()) : [];`,
+    name
+  );
+}
+
 /** Where on the screen a click lands. */
 export interface IPoint {
   x: number;

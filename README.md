@@ -19,6 +19,21 @@ Read an HTML file in JupyterLab and comment on it. The viewer trusts and refresh
 - **Notes are stored in the file** - as HTML comments around the passage, which no browser shows, in the same form the advanced Markdown viewer writes
 - **Notes panel beside the page** - a comment and its replies per mark, with edit, delete, colour, close and a note on the whole document
 
+## Agent skill
+
+The skill in `.agents/skills/jupyterlab-advanced-html-viewer-extension` teaches an AI assistant the marks this extension stores in the HTML file. With it, the assistant can:
+
+- mark passages in the six colours, change a mark's colour and hide a mark
+- comment on a passage or on the whole page
+- answer and close your comments
+- watch a file for new comments, with the bundled `scripts/watch-marks.py`
+
+Agents that read `.agents/skills` find it in a clone of this repository. The skill is not part of the installed package. To use it in Claude Code, run this from the root of the clone:
+
+```bash
+mkdir -p ~/.claude/skills && ln -sfn "$PWD/.agents/skills/jupyterlab-advanced-html-viewer-extension" ~/.claude/skills/jupyterlab-advanced-html-viewer-extension
+```
+
 ## Requirements
 
 - JupyterLab >= 4.6.0

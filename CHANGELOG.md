@@ -2,6 +2,15 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.2] - 2026-09-29
+
+### Added
+
+- Agent skill in `.agents/skills/jupyterlab-advanced-html-viewer-extension`: an AI assistant marks text written in the HTML file in six colours, recolours or hides a mark, comments on a passage or on the whole page, and answers or closes your comments, with markers placed so the page looks the same
+- The skill's `scripts/watch-marks.py` watches HTML files and reports each comment line you add, never the assistant's own lines, a hidden mark or a change of colour; the README gives the line that links the skill into Claude Code
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.1] - 2026-09-28
 
 ### Added
@@ -12,5 +21,3 @@
 - Notes stored in the HTML file as comments around the passage, in the form the advanced Markdown viewer writes
 - Notes panel beside the page: a comment and its replies per mark, with edit, delete, colour, close and a note on the whole document
 - Only text written in the file takes a comment: a selection holding text a trusted page's scripts produced, or an iframe, object or embed element, is refused; the context menu then shows neither Mark nor Add Comment, and Ctrl Shift M shows a notice saying why
-
-<!-- <END NEW CHANGELOG ENTRY> -->

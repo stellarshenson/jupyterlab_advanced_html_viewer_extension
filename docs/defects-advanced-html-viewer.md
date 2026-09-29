@@ -100,3 +100,24 @@ Defects of the Galata suite itself
   - log: 2026-09-28T18:48:40Z @kj added
   - log: 2026-09-28T18:53:27Z @kj closed: fixed
 
+## Agent skill `AGENT`
+
+the skill that lets an AI assistant mark, comment and watch the file on disk
+
+- [x] `DEF-AGENT-8` **close deletes a thread the viewer only hides** - MAJOR; SKILL.md step 5 deletes both comments on the user's one word close or closed; the viewer's Close this mark button sets status=closed and keeps the thread, so the assistant destroys a thread the user meant to hide
+  - evidence: SKILL.md step 5: hide, close and closed add status=closed and keep the comments; step 6 deletes only as step 5 says; adversarial review confirm round 2 (wf_099157a5-f7d) 0 findings
+  - related: ACC-AGENT-68
+  - repro: thread whose last user line is close; skill step 5 says delete both comments
+  - test-tags: MANUAL
+  - root-cause: 2026-09-29T13:06:43Z @kj the port kept the Markdown skill's word list; this viewer names hiding Close (src/notes-panel.ts Close this mark calls setClosed)
+  - log: 2026-09-29T13:06:43Z @kj added
+  - log: 2026-09-29T13:11:49Z @kj closed
+- [x] `DEF-AGENT-9` **backslash not escaped in the one-line marker form** - MINOR; SKILL.md one-line comment rule omits writing a backslash as two; the viewer (src/marks.ts unescapeInline) and the watcher unescape backslash-n and double backslash, so C:\new reads as C: plus a line break plus ew
+  - evidence: SKILL.md one-line rule: a backslash is written doubled; jest skill.spec 'a backslash in a comment on the marker line is written doubled'; Jest 75/75; review round 2 0 findings
+  - related: ACC-AGENT-68
+  - repro: add a comment holding C:\new to a marker with comments on its first line, as the skill says
+  - test-tags: UNIT
+  - root-cause: 2026-09-29T13:06:43Z @kj the port dropped the Markdown skill's escape rule together with the pipe rule HTML does not need
+  - log: 2026-09-29T13:06:43Z @kj added
+  - log: 2026-09-29T13:11:49Z @kj closed
+

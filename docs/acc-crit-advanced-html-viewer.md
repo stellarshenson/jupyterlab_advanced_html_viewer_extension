@@ -456,3 +456,16 @@ The compare-and-write route of the server extension
   - test-tags: INTEGRATION
   - log: 2026-09-28T13:04:10Z @kj added
   - log: 2026-09-28T13:54:29Z @kj closed: verified
+
+## Agent skill `AGENT`
+
+the skill that lets an AI assistant mark, comment and watch the file on disk
+
+- [x] `ACC-AGENT-68` **An agent skill teaches an AI assistant to mark, comment and watch** - MEDIUM; skill .agents/skills/jupyterlab-advanced-html-viewer-extension: mark file text in six colours, comment on a passage or the whole document, hide a mark, answer and close the user's comments, markers leave the page unchanged; scripts/watch-marks.py reports each user comment line once, not the assistant's lines, closed marks or colour changes
+  - evidence: jest src/__tests__/skill.spec.ts 11/11 (examples read back and parse unchanged; stated rules), 3 examples broken on purpose fail 3; pytest test_watch_marks.py 10/10; Galata ui-tests/tests/skill.spec.ts 4/4, fails 0 rows on a broken marker; Galata 65/65; review SHIP round 2
+  - test: src/__tests__/skill.spec.ts reads every skill example back through the viewer and compares the page with and without markers; tests/test_watch_marks.py covers the watch events; Galata ui-tests/tests/skill.spec.ts shows every example listed and painted
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-29T12:39:22Z @kj added
+  - log: 2026-09-29T13:11:49Z @kj closed
+  - log: 2026-09-29T13:12:05Z @kj edited evidence "jest src/__tests__/skill.spec.ts 12/12 (examples read back and parse unchanged; stated rules), 3 examples broken on purpose fail 3; pytest test_watch_marks.py 10/10; Galata ui-tests/tests/skill.spec.ts 4/4, fails 0 rows on a broken marker; Galata 65/65; review SHIP round 2" -> "jest src/__tests__/skill.spec.ts 11/11 (examples read back and parse unchanged; stated rules), 3 examples broken on purpose fail 3; pytest test_watch_marks.py 10/10; Galata ui-tests/tests/skill.spec.ts 4/4, fails 0 rows on a broken marker; Galata 65/65; review SHIP round 2"; reason: the Jest skill file holds 11 cases, not 12
+
