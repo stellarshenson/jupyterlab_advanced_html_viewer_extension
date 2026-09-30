@@ -433,6 +433,12 @@ The list of marks and their notes beside the page
   - test-tags: FUNCTIONAL
   - log: 2026-09-28T13:04:09Z @kj added
   - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-PANEL-71` **Notes badge is see-through, stronger with notes** - MEDIUM; the notes badge over the page's top right corner is semi-transparent, so the page shows through it: opacity 0.4 while the panel lists no mark or note; opacity 0.85, with the icon in the strongest text colour, while it lists one
+  - evidence: Galata ACC-PANEL-71 green on build 1.0.8: badge opacity 0.4 with no mark, 0.85 in --jp-ui-font-color1 with one; stock light and dark renders checked; full Galata 67/67, Jest 81, pytest 19
+  - test: Galata panel.spec 'ACC-PANEL-71': badge opacity 0.4 on a file without marks; 0.85 and the colour of --jp-ui-font-color1 on a file with a mark and the panel hidden
+  - test-tags: FUNCTIONAL
+  - log: 2026-09-30T10:53:18Z @kj added
+  - log: 2026-09-30T10:59:45Z @kj closed
 
 ## Server write route `ROUTE`
 

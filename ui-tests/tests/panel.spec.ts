@@ -73,6 +73,38 @@ test('ACC-PANEL-47 sits beside the page as a narrower strip', async ({
   expect(strip.width).toBeLessThan(frame.width);
 });
 
+test('ACC-PANEL-71 shows the page through the badge, stronger with notes', async ({
+  page,
+  tmpPath
+}) => {
+  const look = () =>
+    badge(page).evaluate((element: Element) => {
+      const style = getComputedStyle(element);
+      const strongest = getComputedStyle(document.body)
+        .getPropertyValue('--jp-ui-font-color1')
+        .trim();
+      const probe = document.createElement('span');
+      probe.style.color = strongest;
+      document.body.appendChild(probe);
+      const expected = getComputedStyle(probe).color;
+      probe.remove();
+      return {
+        opacity: style.opacity,
+        strongest: style.color === expected
+      };
+    });
+  const empty = fixture(tmpPath, 'badge-empty');
+  writeFile(empty, PLAIN);
+  await openViewer(page, empty, 'apples and pears');
+  await expect(badge(page)).toBeVisible();
+  expect(await look()).toEqual({ opacity: '0.4', strongest: false });
+  const noted = fixture(tmpPath, 'badge-noted');
+  writeFile(noted, NOTED + '<!-- marks:settings panel=hidden -->\n');
+  await openViewer(page, noted, 'apples and pears');
+  await expect(badge(page)).toBeVisible();
+  expect(await look()).toEqual({ opacity: '0.85', strongest: true });
+});
+
 test('ACC-PANEL-48 moves through expanded, minimap and hidden', async ({
   page,
   tmpPath

@@ -2,13 +2,19 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.9] - 2026-09-30
+
+### Fixed
+
+- The notes badge over the page's top right corner is semi-transparent, so the page shows through it: faint while the notes panel lists no mark or note, stronger and in the strongest text colour once it lists one; it was opaque in both states
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.7] - 2026-09-30
 
 ### Added
 
 - While changes another program writes arrive in the file, the viewer's tab shows a half-filled circle whose filled half swaps sides, ◐ and ◑; a frame lasts 1 s for a single change and down to 0.25 s for a change at every look at the file, and the marker goes from a tab in front once no change has arrived for 8 s, while a tab behind keeps it until you bring it to the front
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.5] - 2026-09-29
 
