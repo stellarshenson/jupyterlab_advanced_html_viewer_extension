@@ -2,13 +2,19 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.7] - 2026-09-30
+
+### Added
+
+- While changes another program writes arrive in the file, the viewer's tab shows a half-filled circle whose filled half swaps sides, ◐ and ◑; a frame lasts 1 s for a single change and down to 0.25 s for a change at every look at the file, and the marker goes from a tab in front once no change has arrived for 8 s, while a tab behind keeps it until you bring it to the front
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.5] - 2026-09-29
 
 ### Fixed
 
 - The README now says that `pip install` puts the agent skill in `<sys.prefix>/share/jupyter/agents/skills/`, inside the Python environment, not in `~/.agents/skills`, and that you link it into `~/.agents/skills` yourself with the `ln -s` line it gives
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.4] - 2026-09-29
 

@@ -13,7 +13,7 @@ Read an HTML file in JupyterLab and comment on it. The viewer trusts and refresh
 ## Features
 
 - **Opens HTML files** - double-click an `.html` file; Trust HTML runs its scripts and Rerender HTML Document reads it again, as in the built-in viewer
-- **Follows the file** - a change another program writes to the file shows within a few seconds; a change to the notes alone leaves the page as it is
+- **Follows the file** - a change another program writes to the file shows within a few seconds; a change to the notes alone leaves the page as it is. While changes arrive, the tab shows a half-filled circle whose filled half swaps sides, from 1 s a frame for a single change to 0.25 s a frame for a change at every look
 - **Marks in six colours** - select text, right-click and choose a colour under Mark, or Add Comment to write a note at once; Ctrl Shift M (Cmd Shift M on macOS) marks from the keyboard
 - **Only text written in the file takes a comment** - text a trusted page's scripts produce, and whatever an iframe, object or embed of the page shows, is refused
 - **Notes are stored in the file** - as HTML comments around the passage, which no browser shows, in the same form the advanced Markdown viewer writes

@@ -67,6 +67,20 @@ describe('following the file on disk', () => {
     expect(context.model.dirty).toBe(false);
   });
 
+  it('ACC-LIVE-70 signals each change it loads, and no other look', async () => {
+    const follower = follow(
+      fakeContext('<p>old</p>\n'),
+      fakeContents('<p>new</p>\n', 'h2')
+    );
+    let loaded = 0;
+    follower.loaded.connect(() => loaded++);
+    await follower.check();
+    expect(loaded).toBe(1);
+    // The document now holds the revision on disk, so the next look loads nothing.
+    await follower.check();
+    expect(loaded).toBe(1);
+  });
+
   it('DEF-LIVE-4 takes the line ending of the text it loads', async () => {
     const context = fakeContext('<p>old</p>\n');
     context._lineEnding = null;

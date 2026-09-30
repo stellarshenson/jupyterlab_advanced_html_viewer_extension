@@ -95,6 +95,12 @@ Loading a change another process writes to the file into the open viewer
   - test-tags: UNIT
   - log: 2026-09-28T13:03:53Z @kj added
   - log: 2026-09-28T13:54:26Z @kj closed: verified
+- [x] `ACC-LIVE-70` **Tab marker turns at the rate changes arrive** - MEDIUM; while changes from disk arrive, the viewer's tab shows ◐ and ◑ alternating before its label; a frame lasts 1, 0.75, 0.5 or 0.25 s when 1, 2, 3 or 4 of the last four looks at the file (8 s) found a change; with none, a tab in front drops the marker, a tab behind keeps it at 1 s until shown
+  - evidence: jest cue.spec.ts 5/5 (frame per count, slows as changes age out, kept behind, dropped in front, other classes kept) and follow.spec loaded signal; Galata ACC-LIVE-70 on build 1.0.6: frames 1000, 750, 500, 250, ::before ◐ steps(2) 0.5s, gone after quiet; Galata 66/66, jest 81, pytest 19
+  - test: jest src/__tests__/cue.spec.ts: frame per count, marker kept behind and dropped in front; Galata viewer.spec: writes at each look turn the tab faster, ::before holds ◐, steps(2), marker gone after quiet
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-09-30T08:47:06Z @kj added; reason: the rate mapping and the two settle rules need the length
+  - log: 2026-09-30T08:55:49Z @kj closed
 
 ## Where text comes from `ORIGIN`
 

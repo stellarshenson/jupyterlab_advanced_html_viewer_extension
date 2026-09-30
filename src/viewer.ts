@@ -41,6 +41,7 @@ import { ISignal, Signal } from '@lumino/signaling';
 import { Widget } from '@lumino/widgets';
 import * as React from 'react';
 
+import { TabCue } from './cue';
 import { Follower } from './follow';
 import { analyse, IAnalysis, IPageOptions } from './source';
 import { stripMarkers } from './store';
@@ -166,6 +167,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
           context: this.context,
           contents: options.contents
         });
+        this._cue = new TabCue(this, this._follower);
       }
     });
   }
@@ -232,6 +234,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       return;
     }
     this._monitor?.dispose();
+    this._cue?.dispose();
     this._follower?.dispose();
     if (this._url) {
       URL.revokeObjectURL(this._url);
@@ -334,6 +337,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   private _labTrans: TranslationBundle;
   private _monitor: ActivityMonitor<unknown, unknown> | null = null;
   private _follower: Follower | null = null;
+  private _cue: TabCue | null = null;
   private _url = '';
   private _pending: IAnalysis | null = null;
   private _page: IPage | null = null;

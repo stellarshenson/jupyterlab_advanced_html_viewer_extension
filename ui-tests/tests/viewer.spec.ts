@@ -277,3 +277,49 @@ test('ACC-LIVE-12 shows a reply written to the file without loading the page aga
   expect(await inFrame<number>(page, 'return win.__probe;')).toBe(42);
   expect(fileText(file)).toContain('@claude');
 });
+
+test('ACC-LIVE-70 turns the tab marker faster the more changes arrive', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'rate');
+  const version = (n: number) =>
+    `<!DOCTYPE html>\n<p>Version ${n} of the page.</p>\n`;
+  writeFile(file, version(0));
+  await openViewer(page, file, 'Version 0 of the page.');
+  const tab = page.locator('.lm-TabBar-tab', { hasText: 'rate.html' });
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabChanging/);
+  // Each write waits for the marker the one before set, so every look at the
+  // file finds one change.
+  for (const [n, frame] of [
+    [1, 1000],
+    [2, 750],
+    [3, 500],
+    [4, 250]
+  ]) {
+    writeFile(file, version(n));
+    await expect(tab).toHaveClass(
+      new RegExp(`jp-AdvancedHtml-tabFrame${frame}(\\s|$)`),
+      { timeout: 6000 }
+    );
+  }
+  await waitForText(page, 'Version 4 of the page.');
+  const marker = await tab
+    .locator('.lm-TabBar-tabLabel')
+    .evaluate((label: Element) => {
+      const style = getComputedStyle(label, '::before');
+      return {
+        content: style.content,
+        timing: style.animationTimingFunction,
+        duration: style.animationDuration
+      };
+    });
+  expect(marker.content).toBe('"◐"');
+  expect(marker.timing).toMatch(/steps\(2/);
+  expect(marker.duration).toBe('0.5s');
+  // The tab is in front, so the marker goes once none of the last four looks
+  // found a change.
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabChanging/, {
+    timeout: 15000
+  });
+});

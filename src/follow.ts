@@ -19,6 +19,7 @@
 import { DocumentRegistry } from '@jupyterlab/docregistry';
 import { Contents } from '@jupyterlab/services';
 import { IDisposable } from '@lumino/disposable';
+import { ISignal, Signal } from '@lumino/signaling';
 
 /** The origin a change read from disk is tagged with in the shared model. */
 export const EXTERNAL_ORIGIN =
@@ -150,12 +151,18 @@ export class Follower implements IDisposable {
     return this._disposed;
   }
 
+  /** Emitted each time the document takes a change from disk. */
+  get loaded(): ISignal<this, void> {
+    return this._loaded;
+  }
+
   dispose(): void {
     if (this._disposed) {
       return;
     }
     this._disposed = true;
     window.clearInterval(this._timer);
+    Signal.clearData(this);
   }
 
   /**
@@ -222,6 +229,7 @@ export class Follower implements IDisposable {
       await context.revert();
     }
     model.dirty = false;
+    this._loaded.emit();
     return true;
   }
 
@@ -230,4 +238,5 @@ export class Follower implements IDisposable {
   private _timer: number;
   private _busy: Promise<boolean> | null = null;
   private _disposed = false;
+  private _loaded = new Signal<this, void>(this);
 }
