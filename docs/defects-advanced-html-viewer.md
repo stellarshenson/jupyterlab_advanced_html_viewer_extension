@@ -33,6 +33,13 @@ The sandboxed frame, trust, refresh and rendering the page again
   - root-cause: 2026-10-02T08:27:22Z @kj the page's rule wins for the property it sets and the viewer's svg ::selection supplies the others; CSS cannot make one colour of the pair depend on who set the other
   - log: 2026-10-02T08:27:22Z @kj added
   - log: 2026-10-02T08:27:35Z @kj closed
+- [x] `DEF-VIEW-26` **Bright rim inside the page after returning to its tab** - MINOR; reported by Star Colonel as an annoyance: open an html page, switch to another tab, come back: the page shows a bright rim along its inside edge; a click inside the page removes it; cause unknown, reproduce first
+  - evidence: Galata viewer.spec 'DEF-VIEW-26': outline-style of the focused box is auto on build 1.0.34 and none on 1.0.35; dark theme render: edge pixel 238,238,238 with the rule reverted, the page's colour with it; full Galata 74 of 74, Jest 109, pytest 38
+  - root-cause: 2026-10-02T11:23:41Z @kj installNotesPanel moves the content box into a BoxPanel, so it is no longer a direct child of .jp-MainAreaWidget and JupyterLab's rule '.jp-MainAreaWidget > :focus { outline: none }' does not match; the lab focuses that box on activation and the browser draws its focus outline, 1px auto
+  - repro: open an .html file, open a second tab in front, click the html tab again
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-02T11:21:44Z @kj added
+  - log: 2026-10-02T11:31:08Z @kj closed
 
 ## Where text comes from `ORIGIN`
 

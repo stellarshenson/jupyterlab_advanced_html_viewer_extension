@@ -2,13 +2,19 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.36] - 2026-10-02
+
+### Fixed
+
+- The page no longer shows a bright rim along its inside edge when the viewer's tab comes back to the front. The rim was the browser's focus outline on the box that holds the page, which went away after a click into the page; JupyterLab's own rule against that outline did not reach the box beside the notes panel
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.34] - 2026-10-02
 
 ### Changed
 
 - The lint check reports no warning, where it reported five in `src/index.ts`; each of the five lines now states why the rule does not apply to it. The viewer behaves as in 1.0.33
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.33] - 2026-10-02
 

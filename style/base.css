@@ -11,6 +11,17 @@
   min-width: 0;
 }
 
+/*
+ | JupyterLab focuses the box that holds the frame whenever the viewer's tab
+ | comes to the front, and a browser that takes that focus for keyboard focus
+ | draws its own focus ring around the page. JupyterLab removes that ring from
+ | the direct children of a main area widget; the notes panel puts the box one
+ | level further down, where that rule does not reach, so it is removed here.
+ */
+.jp-AdvancedHTMLViewer .jp-HTMLViewer:focus {
+  outline: none;
+}
+
 .jp-AdvancedHtml-tooltip {
   position: fixed;
   z-index: 10000;

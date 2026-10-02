@@ -4,6 +4,7 @@ import * as path from 'path';
 
 import {
   FRAME,
+  SHOWN,
   fileText,
   frameText,
   inFrame,
@@ -431,6 +432,34 @@ test('DEF-LIVE-22 a hidden page does not take the keyboard from the page of a se
     .poll(() => inFrame<string[]>(page, 'return win.keys;'))
     .toEqual(['a', 'b', 'c', 'd']);
   expect(await inGrabber<string[]>('return win.keys;')).toEqual([]);
+});
+
+test('DEF-VIEW-26 draws no outline around the page when its tab comes back to the front', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'rim');
+  writeFile(file, '<!DOCTYPE html>\n<p>The page.</p>\n');
+  const other = `${tmpPath}/rim.txt`;
+  writeFile(other, '');
+  await openViewer(page, file, 'The page.');
+  await page.evaluate(async (target: string) => {
+    await (window as any).jupyterapp.commands.execute('docmanager:open', {
+      path: target,
+      factory: 'Editor'
+    });
+  }, other);
+  await page.locator('.jp-FileEditor .cm-content').click();
+  await page.keyboard.type('ab');
+  await page
+    .locator('#jp-main-dock-panel .lm-TabBar-tab', { hasText: 'rim.html' })
+    .click();
+
+  // The lab gives the focus to the box that holds the frame, and a browser
+  // that takes it for keyboard focus draws its focus ring on that box.
+  const box = page.locator(`${SHOWN} .jp-HTMLViewer`);
+  await expect(box).toBeFocused();
+  await expect(box).toHaveCSS('outline-style', 'none');
 });
 
 test('ACC-VIEW-78 paints selected SVG text in the text colour of the selection', async ({

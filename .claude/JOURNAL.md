@@ -72,3 +72,9 @@ This journal tracks substantive work on documents, diagrams, and documentation c
 
 23. **Task [Short] - Release 1.0.34** (v1.0.34): the change of entry 22 released to npm and PyPI<br>
     **Result**: `CHANGELOG.md` gained the `1.0.34` section: the lint check reports no warning, the viewer behaves as in 1.0.33. README unchanged. The three changed files were unstaged before `make publish`, whose metadata commit takes everything staged, as release 1.0.33 showed.
+
+24. **Task - Focus ring around the page removed** (v1.0.35): the page shows no bright rim when its tab comes back to the front<br>
+    **Result**: Star Colonel reported a bright rim inside the page after a return to its tab, gone after a click into the page (DEF-VIEW-26). Reproduced in Galata: JupyterLab focuses the box that holds the frame on activation, and the browser draws its focus ring on it, `outline: auto 1px`, rgb 238 238 238 in the dark theme. JupyterLab removes that ring with `.jp-MainAreaWidget > :focus`, but `installNotesPanel` puts the box into a `BoxPanel`, one level below where that rule reaches. `style/base.css` now carries `.jp-AdvancedHTMLViewer .jp-HTMLViewer:focus { outline: none }`, the rule the Markdown viewer has for the same case. Galata test `DEF-VIEW-26` red on 1.0.34, green on 1.0.35. jest 109, pytest 38, Galata 74.
+
+25. **Task [Short] - Release 1.0.36** (v1.0.36): the change of entry 24 released to npm and PyPI<br>
+    **Result**: `CHANGELOG.md` gained the `1.0.36` section: no bright rim inside the page when the viewer's tab comes back to the front. README unchanged, the fix adds no feature to list. No release carries the number 1.0.35, which was the local build.
