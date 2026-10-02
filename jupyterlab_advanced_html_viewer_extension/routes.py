@@ -9,6 +9,7 @@ bytes.
 """
 import asyncio
 import json
+from bisect import bisect_left
 
 import tornado
 from jupyter_client.jsonutil import json_default
@@ -19,6 +20,7 @@ from jupyter_server.utils import url_path_join
 
 NAMESPACE = "jupyterlab-advanced-html-viewer-extension"
 LOCKS_KEY = "advanced_html_viewer_locks"
+CRLF = "\r\n".encode("utf-16-le")
 
 
 def valid_edits(edits):
@@ -37,21 +39,47 @@ def valid_edits(edits):
 
 
 def apply_edits(text, edits):
-    """The text with the edits made in it, or None where one reaches past its end.
+    """The file text with the edits made in it, or None where they cannot be made.
 
-    The offsets count UTF-16 code units, as the browser that worked them out does, and they are
-    made from the end backwards so the earlier ones stand.
+    The offsets count UTF-16 code units of the text as the browser's document holds it, which is
+    the file with each CR LF read as one LF. Each is moved to the file text itself, where a CR LF
+    is two units, and the edits are made there from the end backwards, so every character outside
+    them stays as it is. A line break an edit brings takes the ending the document writes on a
+    save: CR LF where the file holds one, else CR where it holds one, else LF.
+
+    None where an edit reaches past the end of the text, and where the edits leave a CR directly
+    before an LF that the document holds as two characters: the file would then read one unit
+    shorter than the document, and the next offsets would be off by one.
     """
+    ending = "\r\n" if "\r\n" in text else "\r" if "\r" in text else "\n"
     units = text.encode("utf-16-le", "surrogatepass")
-    if any(2 * edit["end"] > len(units) for edit in edits):
+    # Where each CR LF stands in the document's text.
+    pairs = []
+    at = units.find(CRLF)
+    while at >= 0:
+        if at % 2 == 0:
+            pairs.append(at // 2 - len(pairs))
+        at = units.find(CRLF, at + 1)
+    # How many units the document holds, before the edits and then after them.
+    length = len(units) // 2 - len(pairs)
+    if any(edit["end"] > length for edit in edits):
         return None
     for edit in sorted(edits, key=lambda edit: edit["start"], reverse=True):
-        units = (
-            units[: 2 * edit["start"]]
-            + edit["text"].encode("utf-16-le", "surrogatepass")
-            + units[2 * edit["end"] :]
+        start, end = (
+            2 * (offset + bisect_left(pairs, offset)) for offset in (edit["start"], edit["end"])
         )
-    return units.decode("utf-16-le", "surrogatepass")
+        units = (
+            units[:start]
+            + edit["text"].replace("\n", ending).encode("utf-16-le", "surrogatepass")
+            + units[end:]
+        )
+        length += len(edit["text"].encode("utf-16-le", "surrogatepass")) // 2 - (
+            edit["end"] - edit["start"]
+        )
+    written = units.decode("utf-16-le", "surrogatepass")
+    if len(units) // 2 - written.count("\r\n") != length:
+        return None
+    return written
 
 
 class WriteHandler(APIHandler):
@@ -59,15 +87,15 @@ class WriteHandler(APIHandler):
 
     `expected` is the hash the contents API reported for the file, which the browser's document
     context holds. `edits` is a list of {"start", "end", "text"}: replacements in the file text as
-    the browser's document holds it, which is the file with LF line endings. The document reads a
-    file holding CR LF with those as LF, and otherwise one holding CR with those as LF; the edits
-    are made in the text read the same way and the file's ending is put back.
+    the browser's document holds it, which is the file with each CR LF read as one LF. The edits
+    are made in the file text itself, so a file of mixed line endings keeps each of them.
 
     The file is compared and written under a lock per path, so two writes of one path from this
     server never interleave. The 200 answer is the contents model of the written file without its
     content, which the browser records as the revision on disk. 400 for a body that is not those
-    three, or edits that overlap or reach past the end of the file, 404 for a file that is not
-    there.
+    three, for edits that overlap or reach past the end of the file, and for edits that would
+    leave a CR directly before an LF the document holds as two characters; the browser then
+    writes through the document's own save. 404 for a file that is not there.
     """
 
     auth_resource = "contents"
@@ -94,20 +122,13 @@ class WriteHandler(APIHandler):
                 self.set_status(409)
                 self.finish(json.dumps({"hash": current.get("hash")}))
                 return
-            text = current["content"]
-            ending = "\r\n" if "\r\n" in text else "\r" if "\r" in text else None
-            written = apply_edits(text.replace(ending, "\n") if ending else text, edits)
+            written = apply_edits(current["content"], edits)
             if written is None:
-                raise tornado.web.HTTPError(400, "an edit reaches past the end of the file")
-            await ensure_async(
-                manager.save(
-                    {
-                        "type": "file",
-                        "format": "text",
-                        "content": written.replace("\n", ending) if ending else written,
-                    },
-                    path,
+                raise tornado.web.HTTPError(
+                    400, "an edit reaches past the end of the file, or joins a CR and an LF"
                 )
+            await ensure_async(
+                manager.save({"type": "file", "format": "text", "content": written}, path)
             )
             model = await ensure_async(
                 manager.get(path, content=False, type="file", require_hash=True)

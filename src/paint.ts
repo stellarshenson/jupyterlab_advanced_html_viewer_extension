@@ -110,12 +110,24 @@ export function pageIsDark(win: Window): boolean {
   return false;
 }
 
+/**
+ * How selected text inside an svg element is painted. A browser gives
+ * selected HTML text the text colour of the selection and leaves selected SVG
+ * text in its own fill, dark on the selection's background. The rule gives
+ * SVG text the system's pair, and the fill follows the colour. It matches no
+ * HTML text outside an svg, so that stays with the browser and the page. A
+ * page's rule on SVG text wins where it is more specific than this one, as
+ * 'svg text::selection' is and 'text::selection' is not.
+ */
+const SELECTION_RULE =
+  'svg ::selection { background-color: Highlight; color: HighlightText; fill: currentColor; }';
+
 /** The stylesheet adopted by each page document, to recolour in place. */
 const sheets = new WeakMap<Document, CSSStyleSheet>();
 
 /**
- * Give the page the rules that colour the highlights, once per document, in
- * the set that suits its background.
+ * Give the page the rules that colour the highlights and the selection, once
+ * per document, the highlights in the set that suits its background.
  */
 function adopt(win: PageWindow): void {
   const doc = win.document;
@@ -126,7 +138,8 @@ function adopt(win: PageWindow): void {
         `::highlight(${highlightName(colour)}) { background-color: ${WASHES[tone][colour]}; }`
     ),
     `::highlight(${CLOSED_HIGHLIGHT}) { background-color: ${CLOSED_WASH[tone]}; }`,
-    `::highlight(${FLASH_HIGHLIGHT}) { background-color: ${FLASH_WASH[tone]}; }`
+    `::highlight(${FLASH_HIGHLIGHT}) { background-color: ${FLASH_WASH[tone]}; }`,
+    SELECTION_RULE
   ].join('\n');
   let sheet = sheets.get(doc);
   if (!sheet) {

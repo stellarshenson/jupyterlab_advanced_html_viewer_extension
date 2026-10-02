@@ -296,13 +296,13 @@ export async function mark(
 /** Trust the file in the visible viewer and wait for its page to come back. */
 export async function trust(page: any): Promise<void> {
   await page
-    .locator('.jp-AdvancedHTMLViewer .jp-Toolbar')
+    .locator(`${SHOWN} .jp-Toolbar`)
     .getByText('Trust HTML', { exact: true })
     .click();
   await expect(
-    page
-      .locator('.jp-AdvancedHTMLViewer .jp-Toolbar')
-      .getByText('Distrust HTML', { exact: true })
+    page.locator(`${SHOWN} .jp-Toolbar`).getByText('Distrust HTML', {
+      exact: true
+    })
   ).toBeVisible();
 }
 

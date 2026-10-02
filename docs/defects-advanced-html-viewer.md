@@ -18,6 +18,21 @@ The sandboxed frame, trust, refresh and rendering the page again
   - log: 2026-09-28T13:53:33Z @kj added; reason: the line carries symptom, cause, fix and file as the defect format asks
   - log: 2026-09-28T13:53:33Z @kj reported: Galata ACC-STORE-36 read undefined for the frame window property and ACC-MARK-42 found the markers in the page after a mark
   - log: 2026-09-28T13:53:33Z @kj closed: fixed: onUpdateRequest no longer renders; _render is called on context ready, a non-marker change, trust and refresh
+- [x] `DEF-VIEW-18` **Selection rule turns selected HTML text white on a page that sets only a selection background** - MAJOR; found in review before release; page with ::selection { background: #b3d4fc } and no colour: the viewer's layered ::selection rule gives selected HTML text HighlightText, white on the page's light blue; SVG text the same
+  - evidence: selector narrowed to svg ::selection; Galata viewer.spec 'ACC-VIEW-78' green on build 1.0.30: paragraph on a page with a selection background alone keeps rgb(34, 34, 34); HTML selection untouched on 7 page kinds measured in Chromium
+  - repro: page with that rule, select a paragraph of colour #222: painted 255,255,255 on 179,212,252
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-02T07:23:04Z @kj the rule's selector is every element; the page's rule wins for background and the viewer's for colour
+  - log: 2026-10-02T07:23:04Z @kj added
+  - log: 2026-10-02T07:32:52Z @kj closed
+- [x] `DEF-VIEW-24` **Selected SVG text takes mixed colours where a page's more specific rule sets one selection colour alone** - MINOR; deferred in review rounds 1 to 3; page with svg text::selection { background: #b3d4fc } and no colour: selected SVG text is 255,255,255 on 179,212,252 with the viewer's rule, 0,0,0 on the same background without it
+  - evidence: wontfix, ruled in review rounds 1 to 3: needs a page rule on SVG text more specific than svg ::selection that sets one colour alone; a fix must read the page's ::selection rules, a new mechanism; the layered and the :where selector were measured and fail on more pages
+  - related: ACC-VIEW-78, DEF-VIEW-18 - the selection rule these set
+  - repro: Chromium 153, scratchpad r3/residual.js: five page rules, each with and without the viewer's rule
+  - test-tags: MANUAL
+  - root-cause: 2026-10-02T08:27:22Z @kj the page's rule wins for the property it sets and the viewer's svg ::selection supplies the others; CSS cannot make one colour of the pair depend on who set the other
+  - log: 2026-10-02T08:27:22Z @kj added
+  - log: 2026-10-02T08:27:35Z @kj closed
 
 ## Where text comes from `ORIGIN`
 
@@ -97,6 +112,29 @@ Loading a change another process writes to the file into the open viewer
   - root-cause: 2026-10-02T05:11:10Z @kj the dock panel hides a tab with display: none; the frame loses its box, so _render reads scrollY 0 and scrollTo on load does nothing
   - log: 2026-10-02T05:11:10Z @kj added
   - log: 2026-10-02T05:22:46Z @kj closed
+- [x] `DEF-LIVE-21` **A trusted page takes the keyboard while its tab is behind another** - MAJOR; trusted page whose script calls focus(): loaded after a change on disk while the viewer's tab is behind a terminal, it takes the keyboard, and the keys typed go to the hidden page; same with display: none, so older than content-visibility hiding
+  - evidence: Galata viewer.spec 'DEF-LIVE-21': editor behind which the page reloads holds 'abcd' and the page got no key; red on build 1.0.29 ('ab'), green on 1.0.30; full Galata 72 of 72
+  - repro: trust a page with input.focus() in a script, put an editor tab in front, type, rewrite the file, type again: the second keys reach the page
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-02T07:23:19Z @kj nothing stops a script of a hidden frame from taking focus; the inert attribute does not
+  - log: 2026-10-02T07:23:19Z @kj added
+  - log: 2026-10-02T07:33:04Z @kj closed
+- [x] `DEF-LIVE-22` **A hidden page takes the keyboard from the page of a second viewer** - MINOR; found in review; two viewers, keyboard inside the visible viewer's page: a trusted page of the hidden viewer whose script calls focus() takes it; the lab window is sent no blur, so the give-back of DEF-LIVE-21 does not run; same on 1.0.29
+  - related: DEF-LIVE-21
+  - evidence: Galata viewer.spec 'DEF-LIVE-22': front page gets a b c d and the hidden page no key; red on build 1.0.30 (front page a b), green on 1.0.32; harness 7 cases incl. timer and re-grab; full Galata 73 of 73
+  - repro: trust a page with input.focus() in a script, open a second html page in front, click its input, type, rewrite the first file, type again: the second keys reach the hidden page
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-02T08:01:32Z @kj the give-back is triggered by the lab window's blur alone, which is sent only when the keyboard leaves the lab's own document
+  - log: 2026-10-02T08:01:32Z @kj added
+  - log: 2026-10-02T08:09:56Z @kj closed
+- [x] `DEF-LIVE-23` **A hidden page holds the keyboard where it moved between two frames** - MINOR; found in review round 3; (a) three viewers, two side by side: after a click from one page straight into the other, a hidden page's focus() sends the keys to the earlier page; (b) two viewers: a hidden page calling focus() while parsing keeps the keys until its load event
+  - evidence: wontfix, ruled in review round 3: not on the path with a terminal in front, not a regression, the harm ends at the next click (a) or at the load event (b); each remedy is a new mechanism (a holder shared between viewers, a blur listener in every page), unmeasured
+  - related: DEF-LIVE-22 - remainder of that defect
+  - repro: scratchpad harness architect5/three.js (a); r4/galata/attack.spec.ts test T1 with an image answered after 5 s (b)
+  - test-tags: MANUAL
+  - root-cause: 2026-10-02T08:27:20Z @kj a move of the keyboard from one frame to another sends the lab document no event; the viewer learns of it at its own frame's load event and through the listener installed at that event
+  - log: 2026-10-02T08:27:20Z @kj added
+  - log: 2026-10-02T08:27:34Z @kj closed
 
 ## Notes panel `PANEL`
 
@@ -181,4 +219,25 @@ Writing marks and notes into the file
   - root-cause: 2026-10-02T01:31:24Z @kj alignText matched the kept line break against the first one in the span before trying the dropped-newline rule
   - log: 2026-10-02T01:31:24Z @kj added
   - log: 2026-10-02T01:46:54Z @kj closed
+- [x] `DEF-STORE-17` **A write changes every line ending of a file with mixed endings** - MEDIUM; file with CR LF on some lines and LF on others: a marker write gives every line CR LF, so the file changes outside its markers; same for a file with CR and LF and no CR LF
+  - evidence: pytest test_routes 'test_write_keeps_mixed_line_endings', 3 files of mixed endings: red before the change, green after; file bytes outside the edits equal; pytest 35 green on build 1.0.29
+  - repro: write bytes a CR LF b LF c, POST write one insert at 0: file reads a CR LF b CR LF c
+  - test-tags: UNIT
+  - root-cause: 2026-10-02T06:45:56Z @kj routes.py reads the whole text as LF, makes the edits, then puts one ending on every line
+  - log: 2026-10-02T06:45:56Z @kj added
+  - log: 2026-10-02T06:52:55Z @kj closed
+- [x] `DEF-STORE-19` **A write that leaves a CR directly before an LF shifts every later mark by one** - MAJOR; found in review before release; file with a lone CR beside LF lines: a write whose result puts a CR directly before an LF makes a CR LF the document holds as two units and the route counts as one; the next mark lands one unit late
+  - evidence: pytest test_routes 'test_write_refuses_to_join_cr_and_lf', 3 files: 400 and bytes unchanged; red before the length check, green after; the browser then writes through the document's own save, which gives that file one ending; pytest 38 green on build 1.0.30
+  - repro: file doctype LF LF p CR p LF, document note after the doctype, then mark 'two': closing marker lands inside the end tag
+  - test-tags: UNIT
+  - root-cause: 2026-10-02T07:23:09Z @kj apply_edits maps offsets by the CR LF pairs of the file; an edit can make a new pair the document does not hold
+  - log: 2026-10-02T07:23:09Z @kj added
+  - log: 2026-10-02T07:32:56Z @kj closed
+- [x] `DEF-STORE-20` **Panel-state write changes the last line ending of a file of mixed endings** - MINOR; file of CR LF lines whose last line ends LF: opening or closing the notes panel writes the settings marker with an edit that spans the trailing whitespace, so that LF becomes CR LF
+  - evidence: jest store.spec 'DEF-STORE-20 leaves the whitespace that ends the file out of its edit': red before, green after; the edit ends where the file's trailing whitespace starts, 3 sources; jest 109 green on build 1.0.30
+  - repro: file p CR LF p LF, open the notes panel: file ends CR LF marker CR LF
+  - test-tags: UNIT
+  - root-cause: 2026-10-02T07:23:14Z @kj settingsEdits replaces the whole trailing whitespace and writes it again, where an insertion before it is enough
+  - log: 2026-10-02T07:23:14Z @kj added
+  - log: 2026-10-02T07:33:00Z @kj closed
 

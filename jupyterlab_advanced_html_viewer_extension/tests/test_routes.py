@@ -94,6 +94,67 @@ async def test_write_keeps_line_ending(jp_fetch, jp_root_dir, ending):
 
 
 @pytest.mark.parametrize(
+    "raw",
+    [
+        "<p>one</p>\r\n<p>\U0001f600 Hello</p>\n<p>three</p>\r\n<p>four</p>\n",
+        "<p>one</p>\r<p>\U0001f600 Hello</p>\n<p>three</p>\r<p>four</p>\n",
+        "<p>one</p>\r\n<p>\U0001f600 Hello</p>\r<p>three</p>\n\r\n<p>four</p>",
+    ],
+)
+async def test_write_keeps_mixed_line_endings(jp_fetch, jp_root_dir, raw):
+    """DEF-STORE-17: in a file of mixed line endings every character outside the edits stays."""
+    marker = "<!-- mark:x note\n@kj: two lines\n-->"
+    ending = "\r\n" if "\r\n" in raw else "\r"
+    (jp_root_dir / "page.html").write_bytes(raw.encode())
+    expected = await disk_hash(jp_fetch, "page.html")
+    # The text as the browser's document holds it, and offsets in its UTF-16 units.
+    held = raw.replace("\r\n", "\n")
+    at = len(held[: held.index("Hello")].encode("utf-16-le")) // 2
+    gone = len(held[: held.index("three")].encode("utf-16-le")) // 2
+    edits = [*insert(held, at, marker), {"start": gone, "end": gone + len("three"), "text": ""}]
+
+    await write(jp_fetch, {"path": "page.html", "expected": expected, "edits": edits})
+
+    assert (jp_root_dir / "page.html").read_bytes() == raw.replace(
+        "Hello", f"{marker.replace(chr(10), ending)}Hello"
+    ).replace("three", "").encode()
+
+
+@pytest.mark.parametrize(
+    ("raw", "edit"),
+    [
+        # A note put in after the doctype's line break, in a file of CR and LF: its last break
+        # is written CR and stands before an LF.
+        (
+            "<!DOCTYPE html>\n\n<p>one</p>\r<p>two</p>\n",
+            lambda held: {"start": 16, "end": 16, "text": "<!-- mark:a note\n@kj: hi\n-->\n"},
+        ),
+        # A marker on its own line taken out with its break: the CR before it meets the LF after.
+        (
+            "<p>one</p>\r<!-- mark:a note\n@kj: hi\n-->\n\n<p>two</p>\n",
+            lambda held: {"start": held.index("<!--"), "end": held.index("-->") + 4, "text": ""},
+        ),
+        (
+            "<html>\r\n<p>one</p>\r<!-- mark:a -->\n\n<p>two</p>\n",
+            lambda held: {"start": held.index("<!--"), "end": held.index("-->") + 4, "text": ""},
+        ),
+    ],
+)
+async def test_write_refuses_to_join_cr_and_lf(jp_fetch, jp_root_dir, raw, edit):
+    """DEF-STORE-19: edits that would leave a CR directly before an LF answer 400, write nothing."""
+    (jp_root_dir / "page.html").write_bytes(raw.encode())
+    expected = await disk_hash(jp_fetch, "page.html")
+    # The text as the browser's document holds it.
+    held = raw.replace("\r\n", "\n") if "\r\n" in raw else raw.replace("\r", "\n")
+
+    with pytest.raises(HTTPClientError) as error:
+        await write(jp_fetch, {"path": "page.html", "expected": expected, "edits": [edit(held)]})
+
+    assert error.value.code == 400
+    assert (jp_root_dir / "page.html").read_bytes() == raw.encode()
+
+
+@pytest.mark.parametrize(
     "edits",
     [
         [{"start": 0, "end": len(PAGE) + 1, "text": ""}],

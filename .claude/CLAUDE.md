@@ -50,12 +50,15 @@ DOM is never touched.
 
 - **Frontend** (TypeScript, `src/`) - `viewer.ts` the widget, trust and refresh, render on a
   non-marker change only, hidden by content-visibility and never `display: none` so the frame keeps
-  its size and scroll position behind another tab; `follow.ts` loads a change on disk; `marks.ts` the marker grammar of the
+  its size and scroll position behind another tab, and gives the keyboard back when a hidden page
+  takes it; `follow.ts` loads a change on disk; `marks.ts` the marker grammar of the
   advanced Markdown viewer; `store.ts` the edits into the file; `notes.ts` the controller and the
   write path; `notes-panel.ts`, `handle.ts`, `icons.ts`, `swatch.ts` ported from the Markdown
   viewer; `index.ts` the factory (default for `.html`), commands and context menu
 - **Server** (Python, `jupyterlab_advanced_html_viewer_extension/routes.py`) - `POST write`, the
   compare-and-write route a marker write sends its edits to; the server makes them in the file
+  text itself, so each line keeps its ending, and answers 400 to edits that would join a CR and an
+  LF (the browser then saves through the document)
 - **Cost on a large file** - a file can be megabytes of embedded images or script, so: the route
   takes the edits and not the text; `src/parse.ts` parses with parse5's tokenizer taking a run of
   plain characters in one piece (`src/__tests__/parse.spec.ts` holds its tree to parse5's);

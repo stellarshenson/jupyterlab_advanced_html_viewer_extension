@@ -11,7 +11,9 @@ import {
   mark,
   onDisk,
   openViewer,
+  pointAt,
   rows,
+  select,
   fixture,
   settings,
   trust,
@@ -321,6 +323,180 @@ test('ACC-VIEW-77 leaves the page undisturbed while its tab is behind another', 
   expect(
     (await heard()).filter(told => !told.startsWith('scroll 400 '))
   ).toEqual(['load true']);
+});
+
+test('DEF-LIVE-21 a page loaded while its tab is behind another does not take the keyboard', async ({
+  page,
+  tmpPath
+}) => {
+  const grabbing = (text: string): string => `<!DOCTYPE html>
+<p>${text}</p>
+<input id="q">
+<script>
+  window.keys = [];
+  document.addEventListener('keydown', event => window.keys.push(event.key));
+  document.getElementById('q').focus();
+</script>
+`;
+  const file = fixture(tmpPath, 'keyboard');
+  writeFile(file, grabbing('The first version.'));
+  const other = `${tmpPath}/keyboard.txt`;
+  writeFile(other, '');
+  await openViewer(page, file, 'The first version.');
+  await trust(page);
+  await page.evaluate(async (target: string) => {
+    await (window as any).jupyterapp.commands.execute('docmanager:open', {
+      path: target,
+      factory: 'Editor'
+    });
+  }, other);
+  const editor = page.locator('.jp-FileEditor .cm-content');
+  await editor.click();
+  await page.keyboard.type('ab');
+
+  // The file changes on disk: the page loads in the hidden frame and its
+  // script asks for the focus.
+  writeFile(file, grabbing('The second version.'));
+  await expect
+    .poll(() => inFrame<string>(page, 'return doc.body.textContent;'), {
+      timeout: 8000
+    })
+    .toContain('The second version.');
+  await page.waitForTimeout(300);
+  await page.keyboard.type('cd');
+
+  await expect(editor).toHaveText('abcd');
+  expect(await inFrame<string[]>(page, 'return win.keys;')).toEqual([]);
+});
+
+test('DEF-LIVE-22 a hidden page does not take the keyboard from the page of a second viewer', async ({
+  page,
+  tmpPath
+}) => {
+  const grabbing = (text: string): string => `<!DOCTYPE html>
+<p>${text}</p>
+<input id="q">
+<script>
+  window.keys = [];
+  document.addEventListener('keydown', event => window.keys.push(event.key));
+  document.getElementById('q').focus();
+</script>
+`;
+  /** Run a function over the frame of the page that asks for the focus. */
+  const inGrabber = <T>(body: string): Promise<T> =>
+    page.evaluate(
+      ([selector, code]: [string, string]) => {
+        const frame = Array.from(
+          document.querySelectorAll<HTMLIFrameElement>(selector)
+        ).find(each => each.contentDocument?.getElementById('q'))!;
+        return new Function('win', 'doc', code)(
+          frame.contentWindow,
+          frame.contentDocument
+        );
+      },
+      [FRAME, body]
+    );
+  const file = fixture(tmpPath, 'keyboard-behind');
+  writeFile(file, grabbing('The first version.'));
+  const front = fixture(tmpPath, 'keyboard-front');
+  writeFile(
+    front,
+    `<!DOCTYPE html>
+<p>The page in front.</p>
+<script>
+  window.keys = [];
+  document.addEventListener('keydown', event => window.keys.push(event.key));
+</script>
+`
+  );
+  await openViewer(page, file, 'The first version.');
+  await trust(page);
+  await openViewer(page, front, 'The page in front.');
+  await trust(page);
+  const at = await pointAt(page, 'The page in front.');
+  await page.mouse.click(at.x, at.y);
+  await page.keyboard.type('ab');
+  expect(await inFrame<string[]>(page, 'return win.keys;')).toEqual(['a', 'b']);
+
+  writeFile(file, grabbing('The second version.'));
+  await expect
+    .poll(() => inGrabber<string>('return doc.body.textContent;'), {
+      timeout: 8000
+    })
+    .toContain('The second version.');
+  await page.waitForTimeout(300);
+  await page.keyboard.type('cd');
+
+  await expect
+    .poll(() => inFrame<string[]>(page, 'return win.keys;'))
+    .toEqual(['a', 'b', 'c', 'd']);
+  expect(await inGrabber<string[]>('return win.keys;')).toEqual([]);
+});
+
+test('ACC-VIEW-78 paints selected SVG text in the text colour of the selection', async ({
+  page,
+  tmpPath
+}) => {
+  const drawing = `<p>Text of a paragraph.</p>
+<svg viewBox="0 0 200 40" width="200" height="40" xmlns="http://www.w3.org/2000/svg">
+  <text id="label" x="10" y="24" font-size="16" fill="#1A2629">THE MAP</text>
+</svg>`;
+  /** How the label is painted while selected. */
+  const selected = (): Promise<{ fill: string; color: string; back: string }> =>
+    inFrame(
+      page,
+      `const style = win.getComputedStyle(doc.getElementById('label'), '::selection');
+       return { fill: style.fill, color: style.color, back: style.backgroundColor };`
+    );
+
+  const file = fixture(tmpPath, 'selection');
+  writeFile(file, `<!DOCTYPE html>\n${drawing}\n`);
+  await openViewer(page, file, 'Text of a paragraph.');
+  await select(page, 'THE MAP');
+  await expect
+    .poll(async () => (await selected()).fill)
+    .not.toBe('rgb(0, 0, 0)');
+  const painted = await selected();
+  expect(painted.fill).toBe(painted.color);
+  expect(painted.fill).not.toBe('rgb(26, 38, 41)');
+  expect(painted.back).not.toBe('rgba(0, 0, 0, 0)');
+
+  // HTML text is left to the browser and the page: on a page that sets a
+  // selection background alone, a selected paragraph keeps its own colour.
+  const own = fixture(tmpPath, 'selection-own');
+  writeFile(
+    own,
+    `<!DOCTYPE html>\n<style>p { color: #222222; } ::selection { background: #b3d4fc; }</style>\n${drawing}\n`
+  );
+  await openViewer(page, own, 'Text of a paragraph.');
+  await select(page, 'THE MAP');
+  await expect
+    .poll(async () => (await selected()).fill)
+    .not.toBe('rgb(0, 0, 0)');
+  const label = await selected();
+  expect(label.fill).toBe(label.color);
+  expect(label.back).not.toBe('rgb(179, 212, 252)');
+  expect(
+    await inFrame(
+      page,
+      `const style = win.getComputedStyle(doc.querySelector('p'), '::selection');
+       return { color: style.color, back: style.backgroundColor };`
+    )
+  ).toEqual({ color: 'rgb(34, 34, 34)', back: 'rgb(179, 212, 252)' });
+
+  // A page's more specific rule on SVG text wins over the viewer's.
+  const specific = fixture(tmpPath, 'selection-specific');
+  writeFile(
+    specific,
+    `<!DOCTYPE html>\n<style>svg text::selection { background: #ffe600; color: #102030; fill: #102030; }</style>\n${drawing}\n`
+  );
+  await openViewer(page, specific, 'Text of a paragraph.');
+  await select(page, 'THE MAP');
+  await expect.poll(selected).toEqual({
+    fill: 'rgb(16, 32, 48)',
+    color: 'rgb(16, 32, 48)',
+    back: 'rgb(255, 230, 0)'
+  });
 });
 
 test('ACC-LIVE-11 shows a change another process wrote without Refresh', async ({

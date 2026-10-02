@@ -230,10 +230,20 @@ export function settingsEdits(
         )
     )
     .join('');
+  // The whitespace that ends the file is the same before and after, so the
+  // edit stops in front of it and its line endings stay as the file has them.
+  let kept = 0;
+  while (
+    kept < rest.length &&
+    source.charAt(source.length - 1 - kept) ===
+      rest.charAt(rest.length - 1 - kept)
+  ) {
+    kept++;
+  }
   edits.push({
     start: tail,
-    end: source.length,
-    text: `${tail > 0 ? '\n' : ''}${serialiseSettings({ panel: state })}${rest}`
+    end: source.length - kept,
+    text: `${tail > 0 ? '\n' : ''}${serialiseSettings({ panel: state })}${rest.slice(0, rest.length - kept)}`
   });
   return edits;
 }

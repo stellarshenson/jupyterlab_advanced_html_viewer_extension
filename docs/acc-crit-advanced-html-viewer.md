@@ -75,9 +75,24 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - evidence: Galata viewer.spec 'ACC-VIEW-77' green on build 1.0.25: no scroll or resize event on leaving the tab, load in a window with height, scrollY 400 kept; red on a build without the change
   - test: Galata viewer.spec 'ACC-VIEW-77': leave the tab, no scroll event; change the file while behind, return: same scrollY, innerHeight above 0 at load
   - test-tags: FUNCTIONAL
-  - mechanism: 2026-10-02T05:11:15Z @kj the viewer is hidden by content-visibility whatever mode the panel asks for, never by display: none
+  - mechanism: 2026-10-02T07:23:29Z @kj display: none is replaced by content-visibility; scale is kept as the panel sets it
   - log: 2026-10-02T05:11:15Z @kj added
   - log: 2026-10-02T05:23:37Z @kj closed
+  - log: 2026-10-02T07:23:29Z @kj mechanism updated "2026-10-02T05:11:15Z @kj the viewer is hidden by content-visibility whatever mode the panel asks for, never by display: none" -> "display: none is replaced by content-visibility; scale is kept as the panel sets it"
+- [x] `ACC-VIEW-78` **Selected SVG text contrasts with the selection** - MEDIUM; selected text inside an svg element is painted in the system selection pair, HighlightText on Highlight, where the browser leaves it in its own fill; selected HTML text is left to the browser and the page; a page's more specific rule on SVG text wins
+  - evidence: Galata viewer.spec 'ACC-VIEW-78' green on build 1.0.30: SVG label fill equals its selection colour, a paragraph on a page with a selection background alone keeps its colour; render of a deck copy: selected SVG labels white on blue
+  - test: Galata viewer.spec 'ACC-VIEW-78': select SVG text, its ::selection fill equals its ::selection colour and not its own fill; on a page with ::selection background alone a selected paragraph keeps its own colour
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-02T07:23:43Z @kj the sheet the viewer adopts holds svg ::selection with Highlight, HighlightText and fill currentColor; it matches no HTML text outside an svg, and a page's more specific rule on SVG text wins
+  - mechanism: 2026-10-02T06:36:17Z @kj the sheet the viewer adopts holds, in a cascade layer, ::selection with Highlight, HighlightText and fill currentColor; unlayered rules of the page win
+  - log: 2026-10-02T06:36:17Z @kj added
+  - log: 2026-10-02T06:43:13Z @kj closed
+  - log: 2026-10-02T06:53:03Z @kj test shown red on a build without the rule: fill stays rgb(0, 0, 0); green on build 1.0.29
+  - log: 2026-10-02T07:23:35Z @kj reopened: review: the rule reached HTML text (DEF-VIEW-18); narrowed to SVG text; evidence retired: Galata viewer.spec 'ACC-VIEW-78' green on build 1.0.27; render of a deck copy: selected SVG text white on the selection blue, was dark; without the rule Chromium computes fill rgb(0, 0, 0); full Galata 71 of 71
+  - log: 2026-10-02T07:23:39Z @kj amended text "selected SVG text takes the text colour of the selection, as selected HTML text does; the browser leaves it in its own fill on the selection background; a page's own ::selection colours stay and SVG text follows them" -> "MEDIUM; selected text inside an svg element is painted in the system selection pair, HighlightText on Highlight, where the browser leaves it in its own fill; selected HTML text is left to the browser and the page; a page's rule on SVG text itself wins"
+  - log: 2026-10-02T07:23:50Z @kj edited test "Galata viewer.spec 'ACC-VIEW-78': select SVG text, its ::selection fill equals HighlightText and not its own fill; with the page's ::selection yellow and black, fill is black" -> "Galata viewer.spec 'ACC-VIEW-78': select SVG text, its ::selection fill equals its ::selection colour and not its own fill; on a page with ::selection background alone a selected paragraph keeps its own colour"
+  - log: 2026-10-02T07:33:07Z @kj closed
+  - log: 2026-10-02T08:04:11Z @kj amended text "selected text inside an svg element is painted in the system selection pair, HighlightText on Highlight, where the browser leaves it in its own fill; selected HTML text is left to the browser and the page; a page's rule on SVG text itself wins" -> "MEDIUM; selected text inside an svg element is painted in the system selection pair, HighlightText on Highlight, where the browser leaves it in its own fill; selected HTML text is left to the browser and the page; a page's more specific rule on SVG text wins"
 
 ## Following the file `LIVE`
 

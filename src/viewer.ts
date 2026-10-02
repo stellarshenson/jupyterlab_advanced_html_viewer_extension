@@ -152,6 +152,8 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     this._labTrans = (options.translator ?? nullTranslator).load('jupyterlab');
     this.frame.classList.add('jp-zoom-target');
     this.frame.addEventListener('load', () => this._onLoad());
+    document.addEventListener('focusin', this._onFocusIn, true);
+    window.addEventListener('blur', this._onBlur);
 
     void this.context.ready.then(() => {
       if (this.isDisposed) {
@@ -251,6 +253,9 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     if (this.isDisposed) {
       return;
     }
+    document.removeEventListener('focusin', this._onFocusIn, true);
+    window.removeEventListener('blur', this._onBlur);
+    this._focused = null;
     this._monitor?.dispose();
     this._cue?.dispose();
     this._follower?.dispose();
@@ -271,6 +276,59 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       (source === rendered || stripMarkers(source) === stripMarkers(rendered))
     );
   }
+
+  /** Remember the element of the lab that has the keyboard. */
+  private _onFocusIn = (event: FocusEvent): void => {
+    const target = event.target;
+    if (target instanceof HTMLElement && !this.node.contains(target)) {
+      this._focused = target;
+    }
+  };
+
+  /**
+   * The lab's window is sent a blur when a frame takes the keyboard from the
+   * lab's own document. Another frame that takes it, as the page of a second
+   * viewer does when the reader clicks into it, is remembered as what has the
+   * keyboard; this viewer's own frame gives it back.
+   */
+  private _onBlur = (): void => {
+    const active = document.activeElement;
+    if (active instanceof HTMLIFrameElement && !this.node.contains(active)) {
+      this._focused = active;
+    }
+    this._giveBack();
+  };
+
+  /**
+   * Give the keyboard back to what had it, where the page holds it while the
+   * viewer is hidden. A script of a trusted page can ask for the keyboard at
+   * any time, as a page loaded after a change on disk does, and the keys the
+   * reader types in the tab in front would then go to a page they cannot see.
+   * The inert attribute does not stop such a script. Called when the lab's
+   * window is sent a blur, when a page has loaded, and when the page's window
+   * is sent a focus; the last two also hold where the keyboard was in another
+   * frame, which sends the lab's window nothing.
+   */
+  private _giveBack = (): void => {
+    const taken = (): boolean =>
+      !this.isDisposed &&
+      !this.isVisible &&
+      document.activeElement === this.frame;
+    if (!taken()) {
+      return;
+    }
+    // After the frame has finished taking the focus.
+    window.setTimeout(() => {
+      if (!taken()) {
+        return;
+      }
+      if (this._focused?.isConnected) {
+        this._focused.focus({ preventScroll: true });
+      } else {
+        this.frame.blur();
+      }
+    }, 0);
+  };
 
   /** The document stopped changing: render, unless only markers moved. */
   private _onSettled(): void {
@@ -333,9 +391,11 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     let href = '';
     try {
       href = win?.location.href ?? '';
+      win?.addEventListener('focus', this._giveBack, true);
     } catch {
       href = '';
     }
+    this._giveBack();
     if (!win || !this._pending || href !== this._url) {
       this._page = null;
       this._pageLoaded.emit(null);
@@ -357,6 +417,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   private _monitor: ActivityMonitor<unknown, unknown> | null = null;
   private _follower: Follower | null = null;
   private _cue: TabCue | null = null;
+  private _focused: HTMLElement | null = null;
   private _url = '';
   private _pending: IAnalysis | null = null;
   private _page: IPage | null = null;

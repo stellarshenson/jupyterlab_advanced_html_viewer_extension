@@ -116,6 +116,26 @@ describe('writing into the file', () => {
     expect(stripMarkers(source)).toBe(PAGE);
   });
 
+  it('DEF-STORE-20 leaves the whitespace that ends the file out of its edit', () => {
+    for (const source of [
+      PAGE,
+      `${PAGE}<!-- marks:settings panel=hidden -->\n`,
+      `${PAGE}\n<!-- marks:settings panel=hidden -->\n \n`
+    ]) {
+      const edits = settingsEdits(
+        source,
+        settingsSpans(analyseComments(source)),
+        'minimap'
+      );
+      expect(Math.max(...edits.map(edit => edit.end))).toBe(
+        source.replace(/\s+$/, '').length
+      );
+      expect(parseSettings(applyEdits(source, edits)).settings).toEqual({
+        panel: 'minimap'
+      });
+    }
+  });
+
   it('ACC-STORE-33 replaces a settings marker it cannot read', () => {
     const source = `${PAGE}<!-- marks:settings panel=sideways obsolete=1 -->\n`;
     expect(parseSettings(source).settings).toBeNull();
