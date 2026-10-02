@@ -2,14 +2,27 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.33] - 2026-10-02
+
+### Fixed
+
+- Selected text inside an SVG, such as the labels of a diagram, is painted in the text colour of the selection; the browser left it in its own colour, dark on the selection's background. Selected HTML text is painted as before, and a page's own rule on SVG text wins where it is more specific than `svg ::selection`
+- Adding, changing or removing a mark or a comment in a file of mixed line endings changes no line ending outside the edit; before, every line of such a file took one ending. An edit that would join a CR and an LF is saved through the document as before the upgrade to edits
+- A trusted page whose script asks for the keyboard while its tab is behind another tab no longer takes your keys: the viewer gives the keyboard back to the tab in front, or to the page of a second viewer that had it
+- Opening or closing the notes panel in a file that has no settings line yet no longer rewrites the whitespace that ends the file
+
+### Changed
+
+- This release changes the server route; restart the JupyterLab server and reload the browser after the upgrade
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.26] - 2026-10-02
 
 ### Fixed
 
 - A change to the file that arrives while the viewer's tab is behind another tab no longer puts you back at the top of the page when you return; a slide deck stays on its slide. The page was loaded in a frame hidden with `display: none`, which has no size and no scroll position
 - The page gets no scroll or resize event when its tab goes behind another tab or comes back, so a script of a trusted page keeps its state. The viewer is now hidden with `content-visibility`, which keeps the frame's size and scroll position
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.22] - 2026-10-02
 
