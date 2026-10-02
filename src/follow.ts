@@ -114,16 +114,6 @@ export function recordRevision(
 }
 
 /**
- * The line ending the context found in the file when it read it, which its
- * own save puts back. Null for LF.
- */
-export function lineEnding(context: ViewerContext): string | null {
-  return (
-    (context as unknown as { _lineEnding?: string | null })._lineEnding ?? null
-  );
-}
-
-/**
  * Options of a {@link Follower}.
  */
 export interface IFollowerOptions {

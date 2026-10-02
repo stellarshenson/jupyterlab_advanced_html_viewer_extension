@@ -181,6 +181,22 @@ Telling text written in the file from content the page produces while it runs; o
   - test-tags: UNIT, FUNCTIONAL
   - log: 2026-09-28T18:14:27Z @kj added
   - log: 2026-09-28T18:28:22Z @kj closed: verified
+- [x] `ACC-ORIGIN-75` **Text that takes no mark costs nothing per character** - HIGH; the reading keeps no run for the text of script, style, textarea, title, xmp, iframe, noembed, noframes, plaintext, or noscript while scripts run; a selection in such text is refused as page content; opening a 13 MB page holding a 10 MB script keeps the heap under 400 MB
+  - evidence: Galata 'ACC-ORIGIN-75 opens a page holding a 10 MB script within 400 MB of heap' in ui-tests/tests/viewer.spec.ts: 122 MB on build 1.0.17, 1105 MB with the parser change absent; jest source.spec 'ACC-STORE-26 keeps no run...' and 'ACC-ORIGIN-75 keeps nothing per character...'
+  - test: jest source.spec 'ACC-STORE-26 keeps no run for the text of script, style, textarea or title'; Galata viewer.spec 'ACC-ORIGIN-75 opens a page holding a 10 MB script within 400 MB of heap'
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-02T02:21:46Z @kj added
+  - log: 2026-10-02T02:21:52Z @kj edited test "jest source.spec 'ACC-STORE-26 keeps no run for the text of script, style, textarea or title'; Galata viewer.spec 'ACC-ORIGIN-76 opens a page holding a 10 MB script within 400 MB of heap'" -> "jest source.spec 'ACC-STORE-26 keeps no run for the text of script, style, textarea or title'; Galata viewer.spec 'ACC-ORIGIN-75 opens a page holding a 10 MB script within 400 MB of heap'"
+  - log: 2026-10-02T02:44:32Z @kj edited text "the reading keeps no run for the text of script, style, textarea, title, xmp, iframe, noembed, noframes, plaintext, or noscript while scripts run; a selection in such text is refused as page content; opening a page with a 10 MB script keeps the heap under 400 MB" -> "HIGH; the reading keeps no run for the text of script, style, textarea, title, xmp, iframe, noembed, noframes, plaintext, or noscript while scripts run; a selection in such text is refused as page content; opening a 13 MB page holding a 10 MB script keeps the heap under 400 MB"
+  - log: 2026-10-02T02:51:28Z @kj closed
+- [x] `ACC-ORIGIN-76` **Runs of plain characters are parsed in one piece** - HIGH; in the text of a script, a style or another raw text element, and in a quoted attribute value, the reading takes a run of printable ASCII and tabs the tokenizer does not act on in one step, over line breaks in script and style text; the tree and every position in it equal parse5's
+  - evidence: jest parse.spec, 23 cases green on build 1.0.19: tree, lines and columns equal parse5's on 21 pages and 3000 generated texts, scripts off and on; 300,000 characters with spaces, tabs and line breaks taken in under 200 steps; 7 mutations of src/parse.ts each fail it
+  - test: jest parse.spec 'parsing with runs taken in one piece': 16 pages and 3000 generated texts against parse5, scripts off and on; 300,000 characters in under 200 steps
+  - test-tags: UNIT
+  - log: 2026-10-02T02:44:31Z @kj added
+  - log: 2026-10-02T02:51:28Z @kj closed
+  - log: 2026-10-02T03:34:01Z @kj edited text "in the text of a script, a style or another raw text element, and in a quoted attribute value, the reading takes a run of printable ASCII the tokenizer does not act on in one step; the tree and every position in it equal parse5's" -> "HIGH; in the text of a script, a style or another raw text element, and in a quoted attribute value, the reading takes a run of printable ASCII and tabs the tokenizer does not act on in one step, over line breaks in script and style text; the tree and every position in it equal parse5's"; reason: the run now holds spaces, tabs and, in script and style text, line breaks (review round 1, DEF-ORIGIN-14)
+  - log: 2026-10-02T03:34:01Z @kj edited evidence "jest parse.spec, 18 cases green on build 1.0.17: tree equals parse5's on 16 pages and 3000 generated texts, scripts off and on; 300,000-character runs taken in under 200 steps; 4 mutations of src/parse.ts each fail it" -> "jest parse.spec, 23 cases green on build 1.0.19: tree, lines and columns equal parse5's on 21 pages and 3000 generated texts, scripts off and on; 300,000 characters with spaces, tabs and line breaks taken in under 200 steps; 7 mutations of src/parse.ts each fail it"
 
 ## Storage in the file `STORE`
 
@@ -272,6 +288,20 @@ How marks, notes and the panel state are written into the HTML file
   - test-tags: FUNCTIONAL
   - log: 2026-09-28T13:04:08Z @kj added
   - log: 2026-09-28T13:54:27Z @kj closed: verified
+- [x] `ACC-STORE-73` **A marker write sends its edits alone** - HIGH; a marker write through the route sends the edits, never the file text; on a 9 MB file the request body stays under 4 kB
+  - evidence: Galata 'ACC-STORE-73 sends its edits alone for a comment on a 9 MB page' in ui-tests/tests/marks.spec.ts: largest write body under 4096 B, page bytes unchanged; jest 'ACC-STORE-34 writes a clean document through the route' checks the body holds edits only; Galata 68/68 on build 1.0.12
+  - test: jest notes.spec 'ACC-STORE-34 writes a clean document through the route'; Galata marks.spec 'ACC-STORE-73 sends its edits alone for a comment on a 9 MB page'
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-02T01:13:35Z @kj added
+  - log: 2026-10-02T01:31:24Z @kj edited test "jest notes.spec 'ACC-STORE-34 writes a clean document through the route'; Galata viewer.spec 'a comment on a 9 MB page sends its edits alone'" -> "jest notes.spec 'ACC-STORE-34 writes a clean document through the route'; Galata marks.spec 'ACC-STORE-73 sends its edits alone for a comment on a 9 MB page'"
+  - log: 2026-10-02T01:46:54Z @kj closed
+- [-] `ACC-STORE-74` **A marker change is read without parsing the file again** - HIGH; a change that puts whole comments at text positions of the file, or changes the inside of one comment, is read by carrying the last reading over the edits, with no parser run; the carried reading equals a fresh one; any other change is parsed
+  - test: jest source.spec 'carries a reading over marker edits as a fresh reading reads them'; jest notes.spec 'reads a marker write without parsing the file again'
+  - test-tags: UNIT
+  - log: 2026-10-02T01:13:35Z @kj added
+  - log: 2026-10-02T01:47:02Z @kj closed
+  - log: 2026-10-02T02:44:31Z @kj reopened; evidence retired: jest source.spec: carried reading equals a fresh parse at every marker offset of 18 pages in 3 page options; 3 mutations of carryAnalysis each fail it; jest notes.spec 'ACC-STORE-74 reads a marker write without parsing the file again': 0 parse5 calls over three writes
+  - log: 2026-10-02T02:44:38Z @kj rejected: superseded by ACC-ORIGIN-76: with runs parsed in one piece a full reading of the 8.9 MB file takes 25 ms, and a build without the carried reading saved a note in 58 to 140 ms; the mechanism was removed
 
 ## Marking in the page `MARK`
 
@@ -444,30 +474,39 @@ The list of marks and their notes beside the page
 
 The compare-and-write route of the server extension
 
-- [x] `ACC-ROUTE-62` **Compare-and-write** - CRITICAL; POST write with path, expected and content writes the file only while its hash equals expected, and answers 200 with the new contents model
+- [x] `ACC-ROUTE-62` **Compare-and-write** - CRITICAL; POST write with path, expected and edits makes the edits in the file only while its hash equals expected, and answers 200 with the new contents model
   - evidence: pytest test_write_matching_hash in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
   - test: pytest test_routes.py test_write_matching_hash
   - test-tags: INTEGRATION
   - log: 2026-09-28T13:04:09Z @kj added
   - log: 2026-09-28T13:54:29Z @kj closed: verified
+  - log: 2026-10-02T01:31:24Z @kj edited text "POST write with path, expected and content writes the file only while its hash equals expected, and answers 200 with the new contents model" -> "CRITICAL; POST write with path, expected and edits makes the edits in the file only while its hash equals expected, and answers 200 with the new contents model"; reason: route body takes edits since DEF-STORE-11
 - [x] `ACC-ROUTE-63` **Refusal on a changed file** - HIGH; a hash that does not match answers 409 with the current hash and leaves the file as it was
   - evidence: pytest test_write_stale_hash in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
   - test: pytest test_routes.py test_write_stale_hash
   - test-tags: INTEGRATION
   - log: 2026-09-28T13:04:09Z @kj added
   - log: 2026-09-28T13:54:29Z @kj closed: verified
-- [x] `ACC-ROUTE-64` **Bad requests** - MEDIUM; a body without the three strings answers 400 and a missing file 404
+- [x] `ACC-ROUTE-64` **Bad requests** - MEDIUM; a body without path, expected and edits answers 400 and a missing file 404
   - evidence: pytest test_write_bad_body and test_write_missing_file in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
   - test: pytest test_routes.py test_write_bad_body and test_write_missing_file
   - test-tags: INTEGRATION
   - log: 2026-09-28T13:04:10Z @kj added
   - log: 2026-09-28T13:54:29Z @kj closed: verified
+  - log: 2026-10-02T01:31:24Z @kj edited text "a body without the three strings answers 400 and a missing file 404" -> "MEDIUM; a body without path, expected and edits answers 400 and a missing file 404"; reason: route body takes edits since DEF-STORE-11
 - [x] `ACC-ROUTE-65` **Authentication required** - CRITICAL; the route refuses a request without credentials
   - evidence: pytest test_write_needs_auth in jupyterlab_advanced_html_viewer_extension/tests/test_routes.py; make test ran check_auth.py: all endpoints require authentication; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
   - test: pytest test_routes.py test_write_needs_auth; make test runs check_auth.py
   - test-tags: INTEGRATION
   - log: 2026-09-28T13:04:10Z @kj added
   - log: 2026-09-28T13:54:29Z @kj closed: verified
+- [x] `ACC-ROUTE-72` **Edits, not the file** - HIGH; POST write takes path, expected and edits, each edit start, end and text in UTF-16 units of the file text with LF line endings, offsets in the text before any edit; the server makes the edits while the hash equals expected and puts the file's line ending back; edits out of range or overlapping answer 400
+  - evidence: pytest test_routes.py test_write_matching_hash, test_write_counts_utf16_units, test_write_keeps_line_ending (CR LF and CR), test_write_bad_edits (9 bodies): 32 pytest green on build 1.0.12
+  - test: pytest test_routes.py test_write_matching_hash, test_write_counts_utf16_units, test_write_keeps_line_ending, test_write_bad_edits
+  - test-tags: INTEGRATION
+  - log: 2026-10-02T01:13:35Z @kj added
+  - log: 2026-10-02T01:31:24Z @kj edited text "POST write takes path, expected and edits, each edit start, end and text in UTF-16 units of the file text with LF line endings; the server makes the edits while the hash equals expected and puts the file's line ending back; edits out of range or overlapping answer 400" -> "HIGH; POST write takes path, expected and edits, each edit start, end and text in UTF-16 units of the file text with LF line endings, offsets in the text before any edit; the server makes the edits while the hash equals expected and puts the file's line ending back; edits out of range or overlapping answer 400"; reason: says which text the offsets count in
+  - log: 2026-10-02T01:46:54Z @kj closed
 
 ## Agent skill `AGENT`
 

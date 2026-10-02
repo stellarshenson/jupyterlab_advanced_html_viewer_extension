@@ -247,9 +247,10 @@ export class AdvancedHTMLViewer extends DocumentWidget<
    * alone, so the page can stay.
    */
   showsSameText(source: string): boolean {
+    const rendered = this._renderedSource;
     return (
-      this._renderedSource !== null &&
-      stripMarkers(source) === stripMarkers(this._renderedSource)
+      rendered !== null &&
+      (source === rendered || stripMarkers(source) === stripMarkers(rendered))
     );
   }
 

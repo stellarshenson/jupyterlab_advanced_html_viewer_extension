@@ -8,12 +8,14 @@ import {
   frameText,
   inFrame,
   labFixtures,
+  mark,
   onDisk,
   openViewer,
   rows,
   fixture,
   settings,
   trust,
+  unmarked,
   waitForText,
   writeFile
 } from './helpers';
@@ -322,4 +324,30 @@ test('ACC-LIVE-70 turns the tab marker faster the more changes arrive', async ({
   await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabChanging/, {
     timeout: 15000
   });
+});
+
+test('ACC-ORIGIN-75 opens a page holding a 10 MB script within 400 MB of heap', async ({
+  page,
+  tmpPath
+}) => {
+  // The shape of a page that carries its pictures in a script: 13 MB, of
+  // which one script is 10.5 MB and one image 2.3 MB.
+  const big = `<!DOCTYPE html>
+<html><head><title>Large</title></head><body>
+<img alt="" src="data:image/webp;base64,${'A'.repeat(2_300_000)}">
+<p>The page chooses a picture with a script.</p>
+<script>const PICTURES = ["${'A'.repeat(10_500_000)}"];</script>
+<p>The last paragraph of the page.</p>
+</body></html>
+`;
+  const file = fixture(tmpPath, 'script');
+  writeFile(file, big);
+  const client = await page.context().newCDPSession(page.context().pages()[0]);
+  await openViewer(page, file, 'The last paragraph of the page.');
+  const { totalSize } = await client.send('Runtime.getHeapUsage');
+  console.log(`heap after open: ${Math.round(totalSize / 1048576)} MB`);
+  expect(totalSize).toBeLessThan(400 * 1048576);
+  // The text after the script still takes a mark.
+  await mark(page, file, 'last paragraph');
+  expect(unmarked(fileText(file)) === big).toBe(true);
 });

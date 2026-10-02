@@ -2,6 +2,7 @@ import { Signal } from '@lumino/signaling';
 
 import { carrySpan, NotesController } from '../notes';
 import { fetchAPI } from '../request';
+import { applyEdits } from '../store';
 
 jest.mock('../request', () => ({ fetchAPI: jest.fn() }));
 
@@ -95,7 +96,9 @@ describe('writing a marker to disk', () => {
     const body = JSON.parse(init!.body as string);
     expect(body.path).toBe('page.html');
     expect(body.expected).toBe('h1');
-    expect(body.content).toBe(viewer.state.text);
+    // ACC-STORE-73: the edits and not the text, which the server makes in the file.
+    expect(Object.keys(body).sort()).toEqual(['edits', 'expected', 'path']);
+    expect(applyEdits(PAGE, body.edits)).toBe(viewer.state.text);
     expect(viewer.context._updateContentsModel).toHaveBeenCalledWith(model);
     expect(viewer.context.model.dirty).toBe(false);
     expect(viewer.context.save).not.toHaveBeenCalled();

@@ -2,13 +2,25 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.22] - 2026-10-02
+
+### Changed
+
+- Adding, changing or removing a mark or a comment sends only its edits to the server, which makes them in the file; before, each save uploaded the whole file. On an 8.9 MB page the note field is ready 0.22 to 0.28 s after Add Comment, where it took 1.9 s, and a saved note shows after 0.20 to 0.34 s, where it took 2.5 s
+- A JupyterLab server started before the upgrade does not take edits, and a save then uploads the whole file as before; restart the server and reload the browser
+
+### Fixed
+
+- Opening a page that holds megabytes of script, style or embedded images no longer takes over a gigabyte of browser memory: a 13 MB page with a 10.5 MB script took 1357 MB of heap and showed after 3.9 s, and now takes 122 MB and shows after 0.48 s
+- A mark placed at the start of a `pre` whose text begins with two line breaks no longer adds a blank line to the page
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.9] - 2026-09-30
 
 ### Fixed
 
 - The notes badge over the page's top right corner is semi-transparent, so the page shows through it: faint while the notes panel lists no mark or note, stronger and in the strongest text colour once it lists one; it was opaque in both states
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.7] - 2026-09-30
 

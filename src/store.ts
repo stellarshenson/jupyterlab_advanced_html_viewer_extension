@@ -20,7 +20,10 @@ import {
   serialiseSettings
 } from './marks';
 
-/** One replacement in the file text. */
+/**
+ * One replacement in the file text. The edits of one write do not overlap,
+ * and each gives its offsets in the text before any of them is made.
+ */
 export interface ISourceEdit {
   start: number;
   end: number;
@@ -34,15 +37,19 @@ const BEFORE_MARKER = /^[ \t]*$/;
 const AFTER_MARKER = /^[ \t]*\r?\n?$/;
 
 /**
- * The text with the edits made in it, from the end backwards so the offsets
- * of the earlier ones stand.
+ * The text with the edits made in it. The text is put together once from the
+ * parts between the edits, so a file of megabytes is copied once whatever the
+ * number of edits.
  */
 export function applyEdits(source: string, edits: ISourceEdit[]): string {
-  let text = source;
-  for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
-    text = text.slice(0, edit.start) + edit.text + text.slice(edit.end);
+  const parts: string[] = [];
+  let from = 0;
+  for (const edit of [...edits].sort((a, b) => a.start - b.start)) {
+    parts.push(source.slice(from, edit.start), edit.text);
+    from = Math.max(from, edit.end);
   }
-  return text;
+  parts.push(source.slice(from));
+  return parts.join('');
 }
 
 /**
@@ -68,19 +75,60 @@ export function markerSpan(source: string, span: ISpan): ISourceEdit {
 }
 
 /**
- * The edits that delete several markers in one write, each worked out on the
- * text with the later ones already gone, so two markers on one line see the
- * line as it will be.
+ * The edits that delete several markers in one write. Each marker is taken
+ * from the last one backwards and sees its line with the later ones already
+ * gone, so of two markers alone on one line the first takes the line.
+ *
+ * The text is never rebuilt on the way: what is already gone is kept as
+ * spans of the file, and the rest of a marker's line is read around them.
  */
 export function markerEdits(source: string, spans: ISpan[]): ISourceEdit[] {
-  let text = source;
-  return [...spans]
-    .sort((a, b) => b.start - a.start)
-    .map(span => {
-      const edit = markerSpan(text, span);
-      text = applyEdits(text, [edit]);
-      return edit;
-    });
+  // What is gone so far, in file order; all of it after the marker at hand.
+  let gone: ISpan[] = [];
+  for (const span of [...spans].sort((a, b) => b.start - a.start)) {
+    // The rest of the marker's line: the text after it, around what is gone,
+    // up to the first line break or the end of the file.
+    let rest = '';
+    let at = span.end;
+    let passed = 0;
+    let lineEnd = -1;
+    while (lineEnd < 0) {
+      const next = gone[passed];
+      const part = source.slice(at, next ? next.start : source.length);
+      const newline = part.indexOf('\n');
+      if (newline >= 0) {
+        rest += part.slice(0, newline + 1);
+        lineEnd = at + newline + 1;
+      } else if (!AFTER_MARKER.test(part) || !next) {
+        // Text follows on the line, or the file ends: no line break matters.
+        rest += part;
+        break;
+      } else {
+        rest += part;
+        at = next.end;
+        passed++;
+      }
+    }
+    const lineStart = source.lastIndexOf('\n', span.start - 1) + 1;
+    if (
+      !BEFORE_MARKER.test(source.slice(lineStart, span.start)) ||
+      !AFTER_MARKER.test(rest)
+    ) {
+      gone = [{ start: span.start, end: span.end }, ...gone];
+      continue;
+    }
+    // The line goes, with what was already gone on it; a last line with no
+    // line break after it takes the one before it instead.
+    const before = source[lineStart - 2] === '\r' ? 2 : 1;
+    gone = [
+      {
+        start: lineEnd < 0 && lineStart > 0 ? lineStart - before : lineStart,
+        end: lineEnd < 0 ? source.length : lineEnd
+      },
+      ...gone.slice(lineEnd < 0 ? gone.length : passed)
+    ];
+  }
+  return gone.map(span => ({ ...span, text: '' }));
 }
 
 /**
@@ -215,16 +263,6 @@ export function withStatus(
 ): IMarkAttribute[] {
   const rest = attributes.filter(attribute => attribute.key !== 'status');
   return closed ? [...rest, { key: 'status', value: 'closed' }] : rest;
-}
-
-/**
- * The text with the line ending the file had when the document loaded it.
- * The document holds the text with LF endings and its own save puts the
- * file's ending back; a write that goes round that save has to do the same,
- * or the file would change its line endings with the first mark.
- */
-export function lineEnded(text: string, ending: string | null): string {
-  return ending ? text.replace(/\n/g, ending) : text;
 }
 
 /** The settings markers among some comments. */

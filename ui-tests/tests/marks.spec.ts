@@ -192,6 +192,45 @@ test('ACC-STORE-34 writes a mark over a change on disk with no File Changed dial
   await expect.poll(() => frameText(page)).toContain('An agent added this.');
 });
 
+test('ACC-STORE-73 sends its edits alone for a comment on a 9 MB page', async ({
+  page,
+  tmpPath
+}) => {
+  // The size of a report holding its images: the page is one image of 9 MB
+  // and three paragraphs after it, so every marker goes in past the image.
+  const big = PAGE.replace(
+    '<h1>',
+    `<img alt="" src="data:image/gif;base64,${'A'.repeat(9_000_000)}">\n<h1>`
+  );
+  const file = fixture(tmpPath, 'large');
+  writeFile(file, big);
+  const bodies: number[] = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && /\/write\b/.test(request.url())) {
+      bodies.push((request.postData() ?? '').length);
+    }
+  });
+  await openViewer(page, file, 'apples and pears');
+  await openMenu(page, await select(page, 'oranges and plums'));
+  await choose(page, 'Add Comment');
+  const field = page.locator('.jp-AdvancedHtml-notesForm textarea');
+  await expect(field).toBeFocused();
+  await field.fill('Which kind?');
+  await page.keyboard.press('Shift+Enter');
+  await expect.poll(() => fileText(file).includes('Which kind?')).toBe(true);
+
+  const text = fileText(file);
+  expect(text).toMatch(
+    new RegExp(
+      `mentions <!-- mark:(${UUID}) note colour=yellow\\n@kj [0-9TZ:-]+: Which kind\\?\\n-->oranges and plums<!-- /mark:\\1 -->\\.</p>`
+    )
+  );
+  expect(unmarked(text) === big).toBe(true);
+  expect(await painted(page, 'jp-ahv-yellow')).toEqual(['oranges and plums']);
+  expect(bodies.length).toBeGreaterThanOrEqual(2);
+  expect(Math.max(...bodies)).toBeLessThan(4096);
+});
+
 test('ACC-STORE-36 paints a new mark without loading the page again', async ({
   page,
   tmpPath

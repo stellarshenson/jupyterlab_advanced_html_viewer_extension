@@ -83,14 +83,30 @@ describe('reading the file', () => {
     }
   });
 
-  it('ACC-STORE-26 places no character of script, style, textarea or title', () => {
+  it('ACC-STORE-26 keeps no run for the text of script, style, textarea or title', () => {
     const source =
-      '<title>T</title><style>p{}</style><script>var a;</script><textarea>t</textarea><p>ok</p>';
+      '<title>T</title><style>p{}</style><script>var a;</script><textarea>t</textarea><xmp>x</xmp><p>ok</p>';
     const analysis = analyse(source, OPTIONS);
-    const placeable = analysis.runs
-      .filter(run => run.starts.some(start => start >= 0))
-      .map(run => run.text);
-    expect(placeable).toEqual(['ok']);
+    expect(analysis.runs.map(run => run.text)).toEqual(['ok']);
+    for (const element of analysis.elements) {
+      expect(element.runs.size).toBe(element.tag === 'p' ? 1 : 0);
+    }
+  });
+
+  it('ACC-ORIGIN-75 keeps nothing per character of a script of megabytes', () => {
+    const source = `<p>a</p><script>const DATA = "${'A'.repeat(4000000)}";</script><p>b</p>`;
+    const analysis = analyse(source, OPTIONS);
+    const kept = analysis.runs.reduce(
+      (sum, run) => sum + run.text.length + run.starts.length + run.ends.length,
+      0
+    );
+    expect(kept).toBe(6);
+    // With scripts on, the text of a noscript is not shown either.
+    const trusted = analyse('<noscript>off</noscript><p>ok</p>', {
+      ...OPTIONS,
+      scripting: true
+    });
+    expect(trusted.runs.map(run => run.text)).toEqual(['ok']);
   });
 
   it('DEF-ORIGIN-2 reads a page holding a text of 200,000 characters', () => {
@@ -98,6 +114,14 @@ describe('reading the file', () => {
     const analysis = analyse(source, OPTIONS);
     const placed = analysis.runs.find(run => run.text === 'ok');
     expect(placed?.starts).toEqual([source.indexOf('ok'), source.indexOf('k')]);
+  });
+
+  it('DEF-STORE-12 places a line break a pre keeps after the one it drops', () => {
+    const source = '<pre>\n\nx</pre>';
+    const run = analyse(source, OPTIONS).runs[0];
+    expect(run.text).toBe('\nx');
+    expect(run.starts).toEqual([6, 7]);
+    expect(run.ends).toEqual([7, 8]);
   });
 
   it('ACC-STORE-27 places the first character of a pre after its dropped newline', () => {

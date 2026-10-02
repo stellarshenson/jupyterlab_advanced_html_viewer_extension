@@ -22,10 +22,10 @@
  * so the comparison sees the same elements the browser made.
  */
 
-import { parse } from 'parse5';
 import type { DefaultTreeAdapterMap } from 'parse5';
 
 import { IComment } from './marks';
+import { parseDocument } from './parse';
 
 type P5Node = DefaultTreeAdapterMap['node'];
 type P5Element = DefaultTreeAdapterMap['element'];
@@ -289,10 +289,7 @@ function stamped(
   source: string,
   options: IPageOptions
 ): { page: string; insertions: IInsertion[] } {
-  const tree = parse(source, {
-    sourceCodeLocationInfo: true,
-    scriptingEnabled: options.scripting
-  });
+  const tree = parseDocument(source, options.scripting);
   const tags = new Map<number, number>();
   let head: number | null = null;
   let html: number | null = null;
@@ -400,10 +397,7 @@ export function analyse(
 ): IAnalysis {
   const { page, insertions } = stamped(source, options);
   const unstamp = unstamper(insertions);
-  const tree: P5Document = parse(page, {
-    sourceCodeLocationInfo: true,
-    scriptingEnabled: options.scripting
-  });
+  const tree: P5Document = parseDocument(page, options.scripting);
   const raw = new Set(RAW_TEXT);
   if (options.scripting) {
     raw.add('noscript');
@@ -475,24 +469,44 @@ export function analyse(
       }
       run = null;
     };
-    for (const child of node.childNodes as P5Node[]) {
+    const children = node.childNodes as P5Node[];
+    for (const [index, child] of children.entries()) {
       if (child.nodeName === '#text') {
+        if (!shown) {
+          // Text the page does not show as text takes no mark, so no run is
+          // kept for it. A script of megabytes would cost its text and two
+          // numbers a character, and whoever reads the runs treats text with
+          // no run as text with no place in the file.
+          continue;
+        }
         const text = child as DefaultTreeAdapterMap['textNode'];
         run ??= { text: '', starts: [], ends: [] };
         const location = text.sourceCodeLocation;
-        const placed =
-          shown && location
-            ? alignText(
-                source,
-                unstamp(location.startOffset),
-                unstamp(location.endOffset),
-                text.value,
-                decode
-              )
-            : {
-                starts: new Array<number>(text.value.length).fill(-1),
-                ends: new Array<number>(text.value.length).fill(-1)
-              };
+        // The parser drops a line break written right after the start tag of
+        // a pre or a listing, so the text starts after it.
+        let from = location ? unstamp(location.startOffset) : 0;
+        if (
+          location &&
+          index === 0 &&
+          (node.tagName === 'pre' || node.tagName === 'listing') &&
+          location.startOffset ===
+            node.sourceCodeLocation?.startTag?.endOffset &&
+          /[\r\n]/.test(source[from] ?? '')
+        ) {
+          from += source.startsWith('\r\n', from) ? 2 : 1;
+        }
+        const placed = location
+          ? alignText(
+              source,
+              from,
+              unstamp(location.endOffset),
+              text.value,
+              decode
+            )
+          : {
+              starts: new Array<number>(text.value.length).fill(-1),
+              ends: new Array<number>(text.value.length).fill(-1)
+            };
         run.text += text.value;
         // One push per character, not a spread: a spread passes one argument
         // per character, which overflows the stack past about 120,000.

@@ -11,9 +11,13 @@
  * other extension observing the model sees an ordinary edit. A change waiting
  * on disk is loaded before the write, so the markers go into the file as it
  * is. And the file is written through the server's compare-and-write route,
- * which rewrites it only while it still holds the revision the document holds,
- * so no File Changed dialog opens; a document holding the reader's unsaved
- * changes is written and not saved, since those changes are theirs to save.
+ * which makes the edits in it only while it still holds the revision the
+ * document holds, so no File Changed dialog opens; a document holding the
+ * reader's unsaved changes is written and not saved, since those changes are
+ * theirs to save.
+ *
+ * A file can be megabytes of embedded images, so the route is sent the edits
+ * and not the text.
  *
  * A marker is a comment, which the page does not show, so the page on screen
  * is still the page of the written file: the marks are painted on it in place
@@ -25,7 +29,7 @@ import { ServerConnection } from '@jupyterlab/services';
 import { IDisposable } from '@lumino/disposable';
 import { ISignal, Signal } from '@lumino/signaling';
 
-import { lineEnding, recordRevision } from './follow';
+import { recordRevision } from './follow';
 import {
   DOCUMENT_TYPE,
   IMark,
@@ -52,7 +56,6 @@ import {
   applyEdits,
   documentMarkerEdit,
   ISourceEdit,
-  lineEnded,
   markEdits,
   markerEdits,
   markerSpan,
@@ -940,8 +943,8 @@ export class NotesController implements IDisposable {
    * Write edits into the document and put them on disk.
    *
    * A change waiting on disk is loaded first. The edits are then worked out
-   * on the document as it stands. With no unsaved changes, the file is
-   * written through the compare-and-write route; a 409 means the file moved
+   * on the document as it stands. With no unsaved changes, the edits are sent
+   * to the compare-and-write route; a 409 means the file moved
    * meanwhile, which is loaded and the edits worked out again, twice at
    * most. On a 200 the same edits go into the document, the context's record
    * of the revision on disk moves to the one written, and the document is
@@ -969,7 +972,6 @@ export class NotesController implements IDisposable {
       if (!changes.length) {
         return false;
       }
-      const written = applyEdits(source, changes);
       const unsaved = model.dirty;
       const expected = context.contentsModel?.hash;
       if (!unsaved && route && typeof expected === 'string') {
@@ -981,7 +983,7 @@ export class NotesController implements IDisposable {
             body: JSON.stringify({
               path: context.localPath,
               expected,
-              content: lineEnded(written, lineEnding(context))
+              edits: changes
             })
           }
         );
@@ -1000,7 +1002,7 @@ export class NotesController implements IDisposable {
             // holds the edits, and the follower brings it in.
             await this._viewer.follower?.check();
             this._flush();
-            return model.toString() === written;
+            return model.toString() === applyEdits(source, changes);
           }
           this._apply(changes);
           if (!recordRevision(context, data)) {

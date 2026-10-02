@@ -7,9 +7,10 @@ import {
 import {
   applyEdits,
   documentMarkerEdit,
-  lineEnded,
+  ISourceEdit,
   markEdits,
   markerEdits,
+  markerSpan,
   settingsEdits,
   settingsSpans,
   stripMarkers
@@ -124,14 +125,76 @@ describe('writing into the file', () => {
     );
     expect(written).toBe(`${PAGE}<!-- marks:settings panel=minimap -->\n`);
   });
-
-  it('ACC-STORE-28 puts the line ending of the file back', () => {
-    expect(lineEnded('a\nb\n', '\r\n')).toBe('a\r\nb\r\n');
-    expect(lineEnded('a\nb\n', null)).toBe('a\nb\n');
-  });
 });
 
 /** The comments of a file, as the viewer reads them. */
 function analyseComments(source: string) {
   return analyse(source, { scripting: false, base: null, extra: '' }).comments;
 }
+
+describe('taking several markers out in one write', () => {
+  /**
+   * The rule the edits follow, done the slow way: each marker is taken out of
+   * the text the later ones have already left, one after the other.
+   */
+  function oneByOne(source: string, spans: { start: number; end: number }[]) {
+    let text = source;
+    for (const span of [...spans].sort((a, b) => b.start - a.start)) {
+      const edit = markerSpan(text, span);
+      text = text.slice(0, edit.start) + text.slice(edit.end);
+    }
+    return text;
+  }
+
+  const MARKER = '<!-- /mark:1b4e28ba-2fa1-41d2-883f-0016d3cca427 -->';
+  const PARTS = [MARKER, MARKER, MARKER, '\n', '\n', '\r\n', ' ', '\t', 'x'];
+
+  /** A text put together from the parts, and where its markers are. */
+  function textOf(seed: number, length: number) {
+    let state = seed;
+    const next = (): number => {
+      state = (state * 48271) % 2147483647;
+      return state;
+    };
+    let text = '';
+    const spans: { start: number; end: number }[] = [];
+    for (let i = 0; i < length; i++) {
+      const part = PARTS[next() % PARTS.length];
+      if (part === MARKER && next() % 4 !== 0) {
+        spans.push({ start: text.length, end: text.length + part.length });
+      }
+      text += part;
+    }
+    return { text, spans };
+  }
+
+  it('takes them out as one by one would, in edits that do not overlap', () => {
+    let markers = 0;
+    for (let seed = 1; seed <= 4000; seed++) {
+      const { text, spans } = textOf(seed, 2 + (seed % 14));
+      const edits = markerEdits(text, spans);
+      markers += spans.length;
+      const ordered = [...edits].sort((a, b) => a.start - b.start);
+      ordered.forEach((edit: ISourceEdit, index) => {
+        expect(edit.start).toBeLessThanOrEqual(edit.end);
+        if (index > 0) {
+          expect(ordered[index - 1].end).toBeLessThanOrEqual(edit.start);
+        }
+      });
+      expect(applyEdits(text, edits)).toBe(oneByOne(text, spans));
+    }
+    expect(markers).toBeGreaterThan(8000);
+  });
+
+  it('gives two markers alone on one line to the first, with the line', () => {
+    const source = `a\n  ${MARKER} ${MARKER}\nb\n`;
+    const first = source.indexOf(MARKER);
+    const second = source.lastIndexOf(MARKER);
+    expect(
+      markerEdits(source, [
+        { start: first, end: first + MARKER.length },
+        { start: second, end: second + MARKER.length }
+      ])
+    ).toEqual([{ start: 2, end: source.lastIndexOf('b'), text: '' }]);
+  });
+});

@@ -31,6 +31,30 @@ Reading the file and telling its text from content the page produces
   - root-cause: 2026-09-28T15:34:35Z @kj analyse appended each text node's offsets with push(...placed.starts), one call argument per character
   - log: 2026-09-28T15:34:35Z @kj added
   - log: 2026-09-28T15:40:31Z @kj closed: fixed: offsets appended one push per character; src/source.ts
+- [x] `DEF-ORIGIN-13` **Opening a page with a large script exhausts browser memory** - CRITICAL; 13 MB page holding one 10.5 MB script: this viewer's heap reaches 1357 MB at open, the built-in viewer's 98 MB; the reporter's browser crashes; Node: 2.2 GB after one reading, 2.8 GB after the two made at open
+  - evidence: generated 13 MB page with a 10.5 MB script, Chromium: heap after open 122 MB on build 1.0.17 (1105 MB before the parser change, 1357 MB on the reported file with 1.0.12; built-in viewer 98 MB), page shown after 0.48 s (was 3.9 s); Galata 69/69, jest 102, pytest 32
+  - related: ACC-ORIGIN-75
+  - related: ACC-ORIGIN-76
+  - repro: open a 13 MB .html holding a 10 MB script element in the Advanced HTML Viewer; read the heap with CDP Runtime.getHeapUsage
+  - test-tags: UNIT, FUNCTIONAL
+  - root-cause: 2026-10-02T02:21:46Z @kj analyse keeps a run for the text of script, style and the other raw-text elements, which takes no mark: the text plus two numbers per character, each built twice, for text every consumer treats as absent
+  - log: 2026-10-02T02:21:46Z @kj added
+  - log: 2026-10-02T02:51:28Z @kj closed
+- [x] `DEF-ORIGIN-14` **A script on many short lines is parsed line by line** - MEDIUM; 13.4 MB page whose script has 560,000 lines of about 14 characters, Chromium, build 1.0.18: page shown after 1.6 s, Add Comment to note field 0.76-1.07 s, saved note shown 0.94-0.98 s; a script of the same size on one line: 0.25 s
+  - evidence: same 13.4 MB page, Chromium, build 1.0.19: page shown after 0.48 s (was 1.6), Add Comment to note field 0.27-0.42 s (was 0.76-1.07), saved note shown 0.31-0.35 s (was 0.94-0.98); reading 87 ms in Node (was 554-670); jest parse.spec 23 green, 3 mutations of the line count fail it
+  - related: ACC-ORIGIN-76
+  - repro: open a page holding a 13 MB script of JSON written with indent=2, add a comment and save a note
+  - test-tags: UNIT
+  - root-cause: 2026-10-02T03:27:09Z @kj a run in src/parse.ts ends at every line break, so each line costs two steps and two character tokens; found by review round 1, deferred by its adjudicator
+  - log: 2026-10-02T03:27:09Z @kj added
+  - log: 2026-10-02T03:34:01Z @kj closed
+- [x] `DEF-ORIGIN-15` **Run pattern exhausts the regular expression stack on millions of lines** - MAJOR; a script of more than about 2.1 million plain lines (3.36 million in Chromium 153) makes IN_RAW_TEXT throw RangeError, Maximum call stack size exceeded; parseDocument throws and the page does not show; parse5 parses the same page; uncommitted code, found by review round 2
+  - evidence: jest parse.spec 'DEF-ORIGIN-15 takes a script of 3,400,000 lines without a throw': RangeError before the pattern change, green after, line 3400001 col 10 offset 10200025 as parse5; build 1.0.20: jest 108, pytest 32, Galata 69/69
+  - repro: parseDocument of a script holding 2,400,000 lines of '  0.123456,' throws
+  - test-tags: UNIT
+  - root-cause: 2026-10-02T03:47:55Z @kj the pattern repeats a group once per line, and the engine keeps one stack entry per repetition; added with DEF-ORIGIN-14 beyond the round 1 plan
+  - log: 2026-10-02T03:47:55Z @kj added
+  - log: 2026-10-02T03:53:40Z @kj closed
 
 ## Marking in the page `MARK`
 
@@ -128,4 +152,25 @@ the skill that lets an AI assistant mark, comment and watch the file on disk
   - root-cause: 2026-09-29T20:02:36Z @kj the skill was built to the earlier rule that it stays out of the wheel; the rule now maps it as wheel shared-data
   - log: 2026-09-29T20:02:36Z @kj added
   - log: 2026-09-29T20:11:10Z @kj closed
+
+## Storage in the file `STORE`
+
+Writing marks and notes into the file
+
+- [x] `DEF-STORE-11` **Comment save slow on a large file** - MAJOR; 8.9 MB file, localhost: each marker write POSTs the whole file (8,896,264 B) and parses it twice; Add Comment makes two writes, note field takes input after 1.9 s; a saved note shows after 2.5 s; slower over a slow uplink
+  - evidence: 8.9 MB page of the reported shape, Chromium, build 1.0.17: Add Comment to note field 0.22-0.28 s (was 1.9), saved note shown 0.20-0.34 s (was 2.5), POST body under 400 B (was 8,896,264); by edits route and one-piece parsing; Galata 69/69, jest 102, pytest 32
+  - related: ACC-ROUTE-72, ACC-STORE-73, ACC-STORE-74
+  - repro: open a 9 MB .html holding one base64 image, Add Comment on a passage, save a note
+  - test-tags: UNIT, INTEGRATION, FUNCTIONAL
+  - root-cause: 2026-10-02T01:13:35Z @kj write route takes the whole content; _write reads the document with analyse before and after the edit, two parse5 parses each; showsSameText strips markers from both texts on every call
+  - log: 2026-10-02T01:13:35Z @kj added
+  - log: 2026-10-02T01:46:54Z @kj closed
+  - log: 2026-10-02T02:51:28Z @kj edited evidence "copy of the 8.9 MB file in Chromium, build 1.0.11: Add Comment to note field 0.27 s (was 1.9), saved note shown 0.18 s (was 2.5), POST body 247-367 B (was 8,896,264), browser work per write 76 ms (was 1100-1700); build 1.0.12: Galata 68/68, jest 107, pytest 32" -> "8.9 MB page of the reported shape, Chromium, build 1.0.17: Add Comment to note field 0.22-0.28 s (was 1.9), saved note shown 0.20-0.34 s (was 2.5), POST body under 400 B (was 8,896,264); by edits route and one-piece parsing; Galata 69/69, jest 102, pytest 32"; reason: the carried reading was removed after measurement; final numbers
+- [x] `DEF-STORE-12` **Line break a pre keeps is placed at the one it drops** - MINOR; pre or listing starting with two line breaks: the parser drops the first, the reading placed the kept one at the dropped one's offset; a marker before it went before the dropped break, which the parser then kept, adding a blank line to the page
+  - evidence: jest source.spec 'DEF-STORE-12 places a line break a pre keeps after the one it drops': starts [6, 7]; green on build 1.0.12
+  - repro: analyse('<pre>\n\nx</pre>'): run starts [5, 7], expected [6, 7]
+  - test-tags: UNIT
+  - root-cause: 2026-10-02T01:31:24Z @kj alignText matched the kept line break against the first one in the span before trying the dropped-newline rule
+  - log: 2026-10-02T01:31:24Z @kj added
+  - log: 2026-10-02T01:46:54Z @kj closed
 

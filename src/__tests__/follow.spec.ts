@@ -1,4 +1,4 @@
-import { differs, Follower, lineEnding, replaceText } from '../follow';
+import { differs, Follower, replaceText } from '../follow';
 
 /** A document context over a text, with the parts the follower reads. */
 function fakeContext(text: string, dirty = false): any {
@@ -85,9 +85,9 @@ describe('following the file on disk', () => {
     const context = fakeContext('<p>old</p>\n');
     context._lineEnding = null;
     await follow(context, fakeContents('<p>new</p>\r\n', 'h2')).check();
-    expect(lineEnding(context)).toBe('\r\n');
+    expect(context._lineEnding).toBe('\r\n');
     await follow(context, fakeContents('<p>lf</p>\n', 'h3')).check();
-    expect(lineEnding(context)).toBeNull();
+    expect(context._lineEnding).toBeNull();
   });
 
   it('reads no content while the hash on disk is the one the document holds', async () => {

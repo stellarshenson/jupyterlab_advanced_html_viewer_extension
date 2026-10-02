@@ -54,7 +54,11 @@ DOM is never touched.
   write path; `notes-panel.ts`, `handle.ts`, `icons.ts`, `swatch.ts` ported from the Markdown
   viewer; `index.ts` the factory (default for `.html`), commands and context menu
 - **Server** (Python, `jupyterlab_advanced_html_viewer_extension/routes.py`) - `POST write`, the
-  compare-and-write route a marker write goes through
+  compare-and-write route a marker write sends its edits to; the server makes them in the file
+- **Cost on a large file** - a file can be megabytes of embedded images or script, so: the route
+  takes the edits and not the text; `src/parse.ts` parses with parse5's tokenizer taking a run of
+  plain characters in one piece (`src/__tests__/parse.spec.ts` holds its tree to parse5's);
+  `analyse` keeps no run for text that takes no mark
 - **Schema** (`schema/plugin.json`) - the note handle (`author`) and the Accel Shift M shortcut
 - **Tests** - pytest in `jupyterlab_advanced_html_viewer_extension/tests/`, Jest in
   `src/__tests__/`, Playwright/Galata in `ui-tests/`
