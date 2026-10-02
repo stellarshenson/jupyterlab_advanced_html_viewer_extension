@@ -89,6 +89,14 @@ Loading a change another process writes to the file into the open viewer
   - root-cause: 2026-09-28T15:34:36Z @kj Follower loaded the text and recorded the revision but not the context's _lineEnding, which the route write and context.save read
   - log: 2026-09-28T15:34:36Z @kj added
   - log: 2026-09-28T15:40:31Z @kj closed: fixed: follower sets the context line ending from the loaded text; src/follow.ts
+- [x] `DEF-LIVE-16` **Place in the page lost after a change while the tab is behind** - MAJOR; file changes on disk while the viewer's tab is behind another tab: the page loads in a frame hidden by display: none, window 0 by 0, scroll read as 0; on return the page is at its top, a slide deck at slide 1
+  - related: ACC-VIEW-77
+  - evidence: Galata viewer.spec 'ACC-VIEW-77' green on build 1.0.25, red on a build without the change; deck copy, file rewritten while tab behind: scrollY 1918 kept, window 1330 by 959 at load; full Galata 70 of 70
+  - repro: trust a deck, go to slide 3, open another tab, rewrite the file with other text, return: scrollY 0, was 1918
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-02T05:11:10Z @kj the dock panel hides a tab with display: none; the frame loses its box, so _render reads scrollY 0 and scrollTo on load does nothing
+  - log: 2026-10-02T05:11:10Z @kj added
+  - log: 2026-10-02T05:22:46Z @kj closed
 
 ## Notes panel `PANEL`
 

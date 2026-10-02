@@ -241,6 +241,88 @@ test('ACC-VIEW-10 keeps the scroll position across a render', async ({
   expect(await inFrame<number>(page, 'return win.scrollY;')).toBeLessThan(405);
 });
 
+test('ACC-VIEW-77 leaves the page undisturbed while its tab is behind another', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'behind');
+  const long = Array.from({ length: 200 }, (_, i) => `<p>Line ${i}</p>`).join(
+    '\n'
+  );
+  writeFile(file, `<!DOCTYPE html>\n${long}\n`);
+  const other = `${tmpPath}/behind.txt`;
+  writeFile(other, 'another document\n');
+  await openViewer(page, file, 'Line 0');
+  const viewer: string = await page.evaluate(
+    () => (window as any).jupyterapp.shell.currentWidget.id
+  );
+  await inFrame(page, 'win.scrollTo(0, 400);');
+  await expect
+    .poll(() => inFrame<number>(page, 'return win.scrollY;'))
+    .toBe(400);
+  // The scroll event of that move is sent with the next frame.
+  await inFrame(
+    page,
+    'return new Promise(done => win.requestAnimationFrame(() => win.requestAnimationFrame(done)));'
+  );
+  // What the page is told from here on, as a script of the page would hear.
+  await page.evaluate((selector: string) => {
+    const frame = document.querySelector<HTMLIFrameElement>(selector)!;
+    const heard: string[] = ((window as any).heard = []);
+    const listen = (): void => {
+      const win = frame.contentWindow!;
+      for (const type of ['scroll', 'resize']) {
+        win.addEventListener(type, () =>
+          heard.push(`${type} ${Math.round(win.scrollY)} ${win.innerHeight}`)
+        );
+      }
+    };
+    frame.addEventListener('load', () => {
+      heard.push(`load ${frame.contentWindow!.innerHeight > 0}`);
+      listen();
+    });
+    listen();
+  }, FRAME);
+  const heard = (): Promise<string[]> =>
+    page.evaluate(() => (window as any).heard);
+
+  await page.evaluate(async (target: string) => {
+    await (window as any).jupyterapp.commands.execute('docmanager:open', {
+      path: target,
+      factory: 'Editor'
+    });
+  }, other);
+  await expect(page.locator('.jp-AdvancedHTMLViewer')).toHaveCSS(
+    'content-visibility',
+    'hidden'
+  );
+  await page.waitForTimeout(500);
+  expect(await heard()).toEqual([]);
+  expect(await inFrame<number>(page, 'return win.scrollY;')).toBe(400);
+
+  // A change on disk while the tab is behind: the page loads in a window
+  // that has its size, at the place the reader left.
+  writeFile(file, `<!DOCTYPE html>\n${long}\n<p>Added at the end.</p>\n`);
+  await expect
+    .poll(() => inFrame<string>(page, 'return doc.body.textContent;'), {
+      timeout: 8000
+    })
+    .toContain('Added at the end.');
+  expect((await heard())[0]).toBe('load true');
+  await expect
+    .poll(() => inFrame<number>(page, 'return win.scrollY;'))
+    .toBe(400);
+
+  await page.evaluate((target: string) => {
+    (window as any).jupyterapp.shell.activateById(target);
+  }, viewer);
+  await waitForText(page, 'Added at the end.');
+  expect(await inFrame<number>(page, 'return win.scrollY;')).toBe(400);
+  expect(
+    (await heard()).filter(told => !told.startsWith('scroll 400 '))
+  ).toEqual(['load true']);
+});
+
 test('ACC-LIVE-11 shows a change another process wrote without Refresh', async ({
   page,
   tmpPath

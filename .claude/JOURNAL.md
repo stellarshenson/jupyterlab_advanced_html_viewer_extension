@@ -51,3 +51,9 @@ This journal tracks substantive work on documents, diagrams, and documentation c
 
 16. **Task [Short] - Release 1.0.22** (v1.0.22): the large-file change of entries 13 to 15 released to npm and PyPI<br>
     **Result**: `CHANGELOG.md` gained the `1.0.22` section: saves send edits and not the file, memory at open on a page with megabytes of script, the `pre` line break of DEF-STORE-12. README unchanged, it names no figure the release changes. Lab server needs a restart to serve the edits route.
+
+17. **Task - Page kept in place while its tab is behind another** (v1.0.25): the viewer is hidden by content-visibility, so a file change that arrives while another tab is in front no longer puts the reader back at the top of the page<br>
+    **Result**: Star Colonel reported that the page is refreshed on every return to its tab, on a slide deck an agent was editing. Measured in Galata on a copy: with no change on disk the frame does not load again; with a change, the page loaded in a frame hidden by `display: none`, window 0 by 0, `_render` read `scrollY` 0, and the reader came back to slide 1 (DEF-LIVE-16). `AdvancedHTMLViewer` in `src/viewer.ts` now overrides the `hiddenMode` accessor and replaces `Display`, which the dock panel sets on every insert, by `ContentVisibility`, which keeps the frame's box (ACC-VIEW-77). Galata helpers now find the viewer in front by `checkVisibility()`, since a hidden viewer has no `lm-mod-hidden` class. Second report, selection starting below the cursor: 11 drags selected the same text in the viewer and in a bare Chromium page; no change. jest 108, pytest 32, Galata 70.
+
+18. **Task [Short] - Release 1.0.26** (v1.0.26): the change of entry 17 released to npm and PyPI<br>
+    **Result**: `CHANGELOG.md` gained the `1.0.26` section: the page keeps its place and its size while the viewer's tab is behind another tab. README unchanged, the fix adds no feature to list.

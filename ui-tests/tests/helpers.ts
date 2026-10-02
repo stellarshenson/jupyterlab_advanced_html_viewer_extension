@@ -20,6 +20,14 @@ export const FACTORY = 'Advanced HTML Viewer';
 export const FRAME = '.jp-AdvancedHTMLViewer iframe';
 
 /**
+ * The viewer in front. One whose tab is behind another is hidden by
+ * content-visibility, which Lumino writes on the node's style and which
+ * leaves the node no `lm-mod-hidden` class.
+ */
+export const SHOWN =
+  '.jp-AdvancedHTMLViewer:not([style*="content-visibility"])';
+
+/**
  * Galata's stock readiness wait expects a Launcher tab in the main area. The
  * lab this suite runs against can open with an empty main area, so readiness
  * here is the splash gone and the shell mounted.
@@ -100,7 +108,7 @@ export function frameText(page: any): Promise<string> {
     const frames = Array.from(
       document.querySelectorAll<HTMLIFrameElement>(selector)
     );
-    const frame = frames.find(each => each.offsetParent !== null) ?? frames[0];
+    const frame = frames.find(each => each.checkVisibility()) ?? frames[0];
     return frame?.contentDocument?.body?.innerText ?? '';
   }, FRAME);
 }
@@ -116,8 +124,7 @@ export function inFrame<T>(
       const frames = Array.from(
         document.querySelectorAll<HTMLIFrameElement>(selector)
       );
-      const frame =
-        frames.find(each => each.offsetParent !== null) ?? frames[0];
+      const frame = frames.find(each => each.checkVisibility()) ?? frames[0];
       const run = new Function('win', 'doc', 'arg', body);
       return run(frame.contentWindow, frame.contentDocument, value);
     },
@@ -156,8 +163,7 @@ export async function select(
       const frames = Array.from(
         document.querySelectorAll<HTMLIFrameElement>(selector)
       );
-      const frame =
-        frames.find(each => each.offsetParent !== null) ?? frames[0];
+      const frame = frames.find(each => each.checkVisibility()) ?? frames[0];
       const doc = frame.contentDocument!;
       // Only text the page shows: the source of a script holds the same
       // words and has no box on screen.
@@ -206,8 +212,7 @@ export async function pointAt(
       const frames = Array.from(
         document.querySelectorAll<HTMLIFrameElement>(selector)
       );
-      const frame =
-        frames.find(each => each.offsetParent !== null) ?? frames[0];
+      const frame = frames.find(each => each.checkVisibility()) ?? frames[0];
       const doc = frame.contentDocument!;
       const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -303,9 +308,7 @@ export async function trust(page: any): Promise<void> {
 
 /** The rows of the notes panel. */
 export const rows = (page: any) =>
-  page.locator(
-    '.jp-AdvancedHTMLViewer:not(.lm-mod-hidden) .jp-AdvancedHtml-notesRow'
-  );
+  page.locator(`${SHOWN} .jp-AdvancedHtml-notesRow`);
 
 /** Every identifier of a mark in a file text. */
 export function markIds(text: string): string[] {

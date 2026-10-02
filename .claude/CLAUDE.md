@@ -49,7 +49,8 @@ DOM is never touched.
 **Architecture**:
 
 - **Frontend** (TypeScript, `src/`) - `viewer.ts` the widget, trust and refresh, render on a
-  non-marker change only; `follow.ts` loads a change on disk; `marks.ts` the marker grammar of the
+  non-marker change only, hidden by content-visibility and never `display: none` so the frame keeps
+  its size and scroll position behind another tab; `follow.ts` loads a change on disk; `marks.ts` the marker grammar of the
   advanced Markdown viewer; `store.ts` the edits into the file; `notes.ts` the controller and the
   write path; `notes-panel.ts`, `handle.ts`, `icons.ts`, `swatch.ts` ported from the Markdown
   viewer; `index.ts` the factory (default for `.html`), commands and context menu

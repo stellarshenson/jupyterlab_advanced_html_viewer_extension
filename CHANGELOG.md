@@ -2,6 +2,15 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.26] - 2026-10-02
+
+### Fixed
+
+- A change to the file that arrives while the viewer's tab is behind another tab no longer puts you back at the top of the page when you return; a slide deck stays on its slide. The page was loaded in a frame hidden with `display: none`, which has no size and no scroll position
+- The page gets no scroll or resize event when its tab goes behind another tab or comes back, so a script of a trusted page keeps its state. The viewer is now hidden with `content-visibility`, which keeps the frame's size and scroll position
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.22] - 2026-10-02
 
 ### Changed
@@ -13,8 +22,6 @@
 
 - Opening a page that holds megabytes of script, style or embedded images no longer takes over a gigabyte of browser memory: a 13 MB page with a 10.5 MB script took 1357 MB of heap and showed after 3.9 s, and now takes 122 MB and shows after 0.48 s
 - A mark placed at the start of a `pre` whose text begins with two line breaks no longer adds a blank line to the page
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.9] - 2026-09-30
 

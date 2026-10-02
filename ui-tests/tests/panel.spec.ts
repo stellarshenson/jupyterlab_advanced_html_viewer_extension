@@ -1,6 +1,7 @@
 import { expect, galata, test } from '@jupyterlab/galata';
 
 import {
+  SHOWN,
   choose,
   entry,
   fileText,
@@ -46,14 +47,9 @@ const NOTED = PLAIN.replace(
 -->apples and pears<!-- /mark:${ID} -->`
 );
 
-const panel = (page: any) =>
-  page.locator(
-    '.jp-AdvancedHTMLViewer:not(.lm-mod-hidden) .jp-AdvancedHtml-notes'
-  );
+const panel = (page: any) => page.locator(`${SHOWN} .jp-AdvancedHtml-notes`);
 const badge = (page: any) =>
-  page.locator(
-    '.jp-AdvancedHTMLViewer:not(.lm-mod-hidden) .jp-AdvancedHtml-notesBadge'
-  );
+  page.locator(`${SHOWN} .jp-AdvancedHtml-notesBadge`);
 const field = (page: any) =>
   page.locator('.jp-AdvancedHtml-notesForm textarea');
 

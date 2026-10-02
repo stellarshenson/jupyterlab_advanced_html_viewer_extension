@@ -71,6 +71,13 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - test-tags: FUNCTIONAL
   - log: 2026-09-28T13:03:53Z @kj added
   - log: 2026-09-28T13:54:25Z @kj closed: verified
+- [x] `ACC-VIEW-77` **Page undisturbed while its tab is behind** - HIGH; while the viewer's tab is behind another tab the frame keeps its size and its scroll position: the page gets no scroll or resize event, and a page loaded meanwhile shows at the place the reader left
+  - evidence: Galata viewer.spec 'ACC-VIEW-77' green on build 1.0.25: no scroll or resize event on leaving the tab, load in a window with height, scrollY 400 kept; red on a build without the change
+  - test: Galata viewer.spec 'ACC-VIEW-77': leave the tab, no scroll event; change the file while behind, return: same scrollY, innerHeight above 0 at load
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-02T05:11:15Z @kj the viewer is hidden by content-visibility whatever mode the panel asks for, never by display: none
+  - log: 2026-10-02T05:11:15Z @kj added
+  - log: 2026-10-02T05:23:37Z @kj closed
 
 ## Following the file `LIVE`
 

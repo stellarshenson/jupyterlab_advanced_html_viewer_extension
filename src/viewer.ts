@@ -147,6 +147,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       content: new IFrame({ sandbox: SANDBOX.common, loading: 'lazy' })
     });
     this.addClass(VIEWER_CLASS);
+    this.hiddenMode = Widget.HiddenMode.ContentVisibility;
     this.content.addClass('jp-HTMLViewer');
     this._labTrans = (options.translator ?? nullTranslator).load('jupyterlab');
     this.frame.classList.add('jp-zoom-target');
@@ -170,6 +171,23 @@ export class AdvancedHTMLViewer extends DocumentWidget<
         this._cue = new TabCue(this, this._follower);
       }
     });
+  }
+
+  /**
+   * How the viewer is hidden while its tab is behind another. The panel that
+   * holds it asks for display: none, which takes the frame's box away: the
+   * page gets a scroll event at 0, and a page loaded meanwhile has a window
+   * of no size and cannot be scrolled to where the reader was. That mode is
+   * replaced by content-visibility, which keeps the box.
+   */
+  get hiddenMode(): Widget.HiddenMode {
+    return super.hiddenMode;
+  }
+  set hiddenMode(value: Widget.HiddenMode) {
+    super.hiddenMode =
+      value === Widget.HiddenMode.Display
+        ? Widget.HiddenMode.ContentVisibility
+        : value;
   }
 
   /** The frame element. */

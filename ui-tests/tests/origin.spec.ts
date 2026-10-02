@@ -1,6 +1,7 @@
 import { expect, test } from '@jupyterlab/galata';
 
 import {
+  SHOWN,
   closeMenus,
   entry,
   fileText,
@@ -35,9 +36,9 @@ test.use({ ...labFixtures, mockSettings: settings() });
  * the same way.
  */
 async function expectRefused(page: any): Promise<void> {
-  await expect(
-    page.locator('.jp-AdvancedHTMLViewer:not(.lm-mod-hidden)')
-  ).toHaveClass(/jp-AdvancedHtml-selectingPage/);
+  await expect(page.locator(SHOWN)).toHaveClass(
+    /jp-AdvancedHtml-selectingPage/
+  );
   await expect(entry(page, 'Mark')).toBeHidden();
   await expect(
     page.locator('.lm-Menu-item:not(.lm-mod-hidden) .lm-Menu-itemLabel', {
@@ -230,9 +231,9 @@ test('DEF-MARK-7 says why when the key is pressed outside the frame', async ({
   await waitForText(page, 'Written by a script.');
   const before = fileText(file);
   await select(page, 'Written by a script.');
-  await expect(
-    page.locator('.jp-AdvancedHTMLViewer:not(.lm-mod-hidden)')
-  ).toHaveClass(/jp-AdvancedHtml-selectingPage/);
+  await expect(page.locator(SHOWN)).toHaveClass(
+    /jp-AdvancedHtml-selectingPage/
+  );
   // Focus moves to the viewer's toolbar; the page keeps its selection.
   await page
     .locator('.jp-AdvancedHTMLViewer .jp-Toolbar')
