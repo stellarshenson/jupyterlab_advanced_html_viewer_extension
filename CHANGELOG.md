@@ -2,6 +2,14 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.34] - 2026-10-02
+
+### Changed
+
+- The lint check reports no warning, where it reported five in `src/index.ts`; each of the five lines now states why the rule does not apply to it. The viewer behaves as in 1.0.33
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.33] - 2026-10-02
 
 ### Fixed
@@ -14,8 +22,6 @@
 ### Changed
 
 - This release changes the server route; restart the JupyterLab server and reload the browser after the upgrade
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.26] - 2026-10-02
 

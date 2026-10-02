@@ -241,3 +241,15 @@ Writing marks and notes into the file
   - log: 2026-10-02T07:23:14Z @kj added
   - log: 2026-10-02T07:33:00Z @kj closed
 
+## Build and checks `BUILD`
+
+lint, packaging and the checks CI runs
+
+- [x] `DEF-BUILD-25` **lint:check reports 5 warnings in src/index.ts** - MINOR; four jupyter/prefer-lazy-imports on ./handle, ./icons, ./marks, ./swatch and one jupyter/incorrect-translator-usage on labTrans; exit 0, so CI passes, and every release report carries WARN
+  - evidence: jlpm run lint:check exit 0 with 0 warnings (logs/lint-1.0.33-after.log); each of the 5 lines carries eslint-disable-next-line with its reason; make test: Jest 109, pytest 38
+  - repro: jlpm run lint:check
+  - test-tags: MANUAL
+  - root-cause: 2026-10-02T08:35:26Z @kj activation uses the four modules at once and three of them load with ./notes-panel anyway; labTrans is the bundle of JupyterLab's own catalogue, named apart from trans on purpose
+  - log: 2026-10-02T08:35:26Z @kj added
+  - log: 2026-10-02T08:36:13Z @kj closed
+

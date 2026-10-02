@@ -32,8 +32,11 @@ import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import { html5Icon } from '@jupyterlab/ui-components';
 import { Menu } from '@lumino/widgets';
 
+// eslint-disable-next-line jupyter/prefer-lazy-imports -- activation builds the note handle at once
 import { NoteHandle } from './handle';
+// eslint-disable-next-line jupyter/prefer-lazy-imports -- activation gives the commands and the Mark menu their icons at once
 import { MARK_ICONS, MARK_MENU_ICON, NOTE_ICON, PANEL_ICONS } from './icons';
+// eslint-disable-next-line jupyter/prefer-lazy-imports -- activation builds the Mark menu from the colours at once
 import {
   DEFAULT_COLOUR,
   HIDE_MINIMAP_LABEL,
@@ -54,6 +57,7 @@ import {
   PANEL_CLASS,
   ROW_CLASS
 } from './notes-panel';
+// eslint-disable-next-line jupyter/prefer-lazy-imports -- activation sets the swatch colours at once
 import { applySwatchColours } from './swatch';
 import {
   AdvancedHTMLViewer,
@@ -156,6 +160,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     const trans = labTranslator.load(
       'jupyterlab_advanced_html_viewer_extension'
     );
+    // eslint-disable-next-line jupyter/incorrect-translator-usage -- the bundle of JupyterLab's own catalogue, whose strings this extension's extractor must not take
     const labTrans = labTranslator.load('jupyterlab');
     applySwatchColours(document.body);
     themeManager?.themeChanged.connect(() => applySwatchColours(document.body));

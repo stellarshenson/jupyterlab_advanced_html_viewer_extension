@@ -66,3 +66,9 @@ This journal tracks substantive work on documents, diagrams, and documentation c
 
 21. **Task [Short] - Release 1.0.33** (v1.0.33): the changes of entries 19 and 20 released to npm and PyPI<br>
     **Result**: `CHANGELOG.md` gained the `1.0.33` section: selected SVG text in the selection's text colour, line endings kept in a file of mixed endings, the keyboard given back by a hidden page, the file's trailing whitespace left alone by a settings write. README unchanged, the fixes add no feature to list.
+
+22. **Task [Short] - Lint warnings removed**: `lint:check` reports 0 warnings, where it reported 5 in `src/index.ts`<br>
+    **Result**: Four `jupyter/prefer-lazy-imports` (`./handle`, `./icons`, `./marks`, `./swatch`) and one `jupyter/incorrect-translator-usage` (`labTrans`) now carry `eslint-disable-next-line` with a reason, as the MOTD extension does (DEF-BUILD-25). Lazy loading gains nothing here: activation uses all four at once and three load with `./notes-panel` anyway.
+
+23. **Task [Short] - Release 1.0.34** (v1.0.34): the change of entry 22 released to npm and PyPI<br>
+    **Result**: `CHANGELOG.md` gained the `1.0.34` section: the lint check reports no warning, the viewer behaves as in 1.0.33. README unchanged. The three changed files were unstaged before `make publish`, whose metadata commit takes everything staged, as release 1.0.33 showed.
