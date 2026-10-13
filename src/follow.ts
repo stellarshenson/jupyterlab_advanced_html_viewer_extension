@@ -123,16 +123,44 @@ export interface IFollowerOptions {
   interval?: number;
 }
 
+/** The follower each document has while a view holds it. */
+const held = new WeakMap<ViewerContext, Follower>();
+
 /**
  * Looks at the file of one document and loads a change another process made.
  */
 export class Follower implements IDisposable {
+  /**
+   * The follower of a document, for one of its views. Every view of the
+   * document gets the same one, so each is told of every change and the
+   * server is asked once. A view gives it back with {@link Follower.release}.
+   */
+  static hold(options: IFollowerOptions): Follower {
+    let follower = held.get(options.context);
+    if (!follower) {
+      follower = new Follower(options);
+      held.set(options.context, follower);
+    }
+    follower._views++;
+    return follower;
+  }
+
+  /** Give a held follower back. It ends when its last view does so. */
+  static release(follower: Follower): void {
+    if (--follower._views === 0) {
+      held.delete(follower._context);
+      follower.dispose();
+    }
+  }
+
   constructor(options: IFollowerOptions) {
     this._context = options.context;
     this._contents = options.contents;
     this._timer = window.setInterval(() => {
-      if (document.visibilityState !== 'hidden') {
-        void this.check();
+      // A beat that falls while a look is under way takes none, so each
+      // look is signalled once however long it lasts.
+      if (document.visibilityState !== 'hidden' && !this._busy) {
+        void this.check().then(() => this._looked.emit());
       }
     }, options.interval ?? FOLLOW_MS);
   }
@@ -144,6 +172,14 @@ export class Follower implements IDisposable {
   /** Emitted each time the document takes a change from disk. */
   get loaded(): ISignal<this, void> {
     return this._loaded;
+  }
+
+  /**
+   * Emitted when a look the follower took at its own beat has finished,
+   * after the change it loaded, if any, was signalled.
+   */
+  get looked(): ISignal<this, void> {
+    return this._looked;
   }
 
   dispose(): void {
@@ -227,6 +263,8 @@ export class Follower implements IDisposable {
   private _contents: Contents.IManager;
   private _timer: number;
   private _busy: Promise<boolean> | null = null;
+  private _views = 0;
   private _disposed = false;
   private _loaded = new Signal<this, void>(this);
+  private _looked = new Signal<this, void>(this);
 }

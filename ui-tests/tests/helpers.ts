@@ -291,6 +291,14 @@ export async function mark(
   await expect
     .poll(() => (fileText(apiPath).match(/<!-- \/mark:/g) ?? []).length)
     .toBe(before + 1);
+  // The file holds the mark before the viewer has handled the reply. The
+  // viewer then clears the selection, and a selection the test made in
+  // between would go with it, so the mark is done once the selection is gone.
+  await expect
+    .poll(() =>
+      inFrame<boolean>(page, 'return win.getSelection().isCollapsed;')
+    )
+    .toBe(true);
 }
 
 /** Trust the file in the visible viewer and wait for its page to come back. */

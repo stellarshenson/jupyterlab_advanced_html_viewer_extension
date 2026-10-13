@@ -142,6 +142,47 @@ Loading a change another process writes to the file into the open viewer
   - root-cause: 2026-10-02T08:27:20Z @kj a move of the keyboard from one frame to another sends the lab document no event; the viewer learns of it at its own frame's load event and through the listener installed at that event
   - log: 2026-10-02T08:27:20Z @kj added
   - log: 2026-10-02T08:27:34Z @kj closed
+- [x] `DEF-LIVE-27` **Tab marker jumps up and down between its two frames** - MEDIUM; the half-filled circle on the tab of a changing file moves up or down by about 1 px each time it changes frame; the reader sees a jump, not only the filled half changing side
+  - evidence: the second frame is the character U+25D1 set by the keyframes, with no transform; jest 'alternates two characters, neither of them turned or moved' fails on the rotate keyframe; Galata ACC-LIVE-70 reads both frames with transform none; the same rule measured 0 px of movement in the Markdown viewer
+  - repro: write a file open in the viewer and watch the circle on its tab: it changes height at every frame
+  - test-tags: UNIT, FUNCTIONAL
+  - root-cause: 2026-10-13T10:42:18Z @kj the second frame is the one glyph U+25D0 rotated half a turn about the centre of its box (style/base.css, steps(2, end) over rotate(1turn)); no font draws the circle at that centre, so the turn moves it by twice the offset; measured in the Markdown viewer, DEF-CUE-128 there: 1.25 px
+  - log: 2026-10-13T10:42:18Z @kj added
+  - log: 2026-10-13T10:58:02Z @kj closed
+- [x] `DEF-LIVE-28` **A change marks only one of two tabs of the same file** - MEDIUM; With New View for HTML on one file, each change put the marker on one of the two tabs, and the server got two sets of requests.
+  - test-tags: UNIT, FUNCTIONAL
+  - evidence: Follower.hold and Follower.release in src/follow.ts give every view of a document one follower; jest follow.spec 'DEF-LIVE-28 gives every view of a document one follower ...' fails on a mutant that builds a follower per view; Galata viewer.spec 'DEF-LIVE-28 marks both tabs ...' on build 1.0.37: both tabs alternate, the views share one follower, the second view follows on after the first closes; viewer.spec 24 of 24
+  - repro: Open an HTML file, run docmanager:clone, write the file: one tab alternates and the other shows nothing
+  - root-cause: 2026-10-13T13:34:05Z @kj src/viewer.ts built one Follower and one TabCue per view over a shared context. The follower that loaded first moved the context's record of the revision, so the other follower's differs() answered false and its loaded signal never fired.
+  - log: 2026-10-13T13:34:05Z @kj added
+  - log: 2026-10-13T13:38:44Z @kj closed; reason: names the fix, the failing-first check and the browser run
+  - log: 2026-10-13T13:39:22Z @kj edited test-tags added "UNIT, FUNCTIONAL"
+- [x] `DEF-LIVE-29` **The sun marks a change the reader watched** - MEDIUM; A change that arrived while the tab was in front got the sun when the tab went behind before the marker left, although the reader had seen the change arrive.
+  - test-tags: UNIT, FUNCTIONAL
+  - evidence: TabCue sets unseen only when a change loads while the widget is not visible and clears it at after-show; on a mutant that always sets unseen four jest cases of cue.spec fail: 'DEF-LIVE-29 gives no unread marker ...', 'stands still after two looks ...' and two tooltip cases; Galata 'DEF-LIVE-29 gives no unread marker to a change the reader watched ...' on the local build of 2026-10-13 16:20: no tabUnread class in the recorded history of the tab, marker gone while the tab is behind
+  - repro: Open a file, write it, wait for the alternating marker, select another tab within 8 s: the tab shows the sun and keeps it
+  - root-cause: 2026-10-13T13:34:05Z @kj TabCue set unread at any look without a recent change while the widget was not visible. It did not record whether the change had arrived while the tab was behind.
+  - log: 2026-10-13T13:34:05Z @kj added
+  - log: 2026-10-13T13:38:44Z @kj closed; reason: names the fix, the failing-first check and the browser run
+  - log: 2026-10-13T13:39:13Z @kj edited evidence "TabCue sets unseen only when a change loads while the widget is not visible and clears it at after-show; jest cue.spec 'DEF-LIVE-29 gives no sun ...' and three ACC-LIVE-79 cases fail on a mutant that always sets unseen; Galata 'DEF-LIVE-29 gives no sun to a change the reader watched ...' on build 1.0.37: no tabUnread class in the recorded history of the tab, marker gone while the tab is behind" -> "TabCue sets unseen only when a change loads while the widget is not visible and clears it at after-show; on a mutant that always sets unseen four jest cases of cue.spec fail: 'DEF-LIVE-29 gives no sun ...', 'stands still after two looks ...' and two tooltip cases; Galata 'DEF-LIVE-29 gives no sun to a change the reader watched ...' on build 1.0.37: no tabUnread class in the recorded history of the tab, marker gone while the tab is behind"; reason: the first wording named the wrong three failing cases
+  - log: 2026-10-13T13:39:22Z @kj edited test-tags added "UNIT, FUNCTIONAL"
+  - log: 2026-10-13T14:33:26Z @kj edited evidence "TabCue sets unseen only when a change loads while the widget is not visible and clears it at after-show; on a mutant that always sets unseen four jest cases of cue.spec fail: 'DEF-LIVE-29 gives no sun ...', 'stands still after two looks ...' and two tooltip cases; Galata 'DEF-LIVE-29 gives no sun to a change the reader watched ...' on build 1.0.37: no tabUnread class in the recorded history of the tab, marker gone while the tab is behind" -> "TabCue sets unseen only when a change loads while the widget is not visible and clears it at after-show; on a mutant that always sets unseen four jest cases of cue.spec fail: 'DEF-LIVE-29 gives no unread marker ...', 'stands still after two looks ...' and two tooltip cases; Galata 'DEF-LIVE-29 gives no unread marker to a change the reader watched ...' on the local build of 2026-10-13 16:20: no tabUnread class in the recorded history of the tab, marker gone while the tab is behind"; reason: the test titles were renamed with the glyph; the runs are those of the final build
+- [x] `DEF-LIVE-30` **The marker shows another state for a moment between two changes** - MINOR; With a change at every other look, the marker stood still or showed the sun between two runs of alternation, for as long as one load took longer than the one before: 5 ms measured, up to 107 ms on a slow link.
+  - test-tags: UNIT
+  - evidence: TabCue has no timer and reads no clock; it counts the follower's looked signal; jest cue.spec 'DEF-LIVE-30 keeps alternating through a change at every other look ...' records every title change over seven looks and sees the two alternating states only; follow.spec 'DEF-LIVE-30 signals every look ...' fails on a mutant with no look signal and on one that counts every check as a look
+  - repro: Run src/cue.ts on a stepped clock with a change at every other look and the load 5 ms after the interval: at 4000 the tick sets Changing Unread, at 4005 the load sets Changing Arriving Frame750
+  - root-cause: 2026-10-13T13:34:05Z @kj TabCue ran its own 2 s interval beside the follower's and aged changes by Date.now, so the order of its tick and the follower's load decided the state at each window edge.
+  - log: 2026-10-13T13:34:05Z @kj added
+  - log: 2026-10-13T13:38:44Z @kj closed; reason: names the fix and the two failing-first checks
+  - log: 2026-10-13T13:39:22Z @kj edited test-tags added "UNIT"
+- [x] `DEF-LIVE-31` **A look longer than the interval counts as several looks** - MAJOR; When one look at the file lasted longer than the 2 s interval, the marker counted it as two or more looks, the extra ones without a change: the marker stood still, showed the sun or left while changes still loaded. Found by all three lenses of the review of 2026-10-13; never released.
+  - evidence: the interval callback of Follower takes no look while one is under way (the condition gained !this._busy), so looked is raised once per look; jest follow.spec 'DEF-LIVE-31 signals one look for a look that lasts longer than two intervals' fails without the condition; review rounds 2 to 5 confirmed the change; jest 129, Galata 79 of 79 on the local build of 2026-10-13 17:00
+  - repro: A content read answered after 5 s under a 2 s interval: the follower raises looked three times when the read ends; with one change and a look of 2.5 intervals the marker never alternates
+  - test-tags: UNIT
+  - root-cause: 2026-10-13T14:00:41Z @kj The interval callback of Follower called check() at every beat. A beat during a look joined that look's promise, and every joined beat raised looked when the promise resolved, so TabCue pushed one empty look per joined beat.
+  - log: 2026-10-13T14:00:41Z @kj added; reason: names the effect on the marker, who found it and that it was never released
+  - log: 2026-10-13T14:33:26Z @kj closed; reason: names the fix, the failing-first check, the review rounds and the run totals
+  - log: 2026-10-13T15:13:49Z @kj edited evidence "the interval callback of Follower takes no look while one is under way (the condition gained !this._busy), so looked is raised once per look; jest follow.spec 'DEF-LIVE-31 signals one look for a look that lasts longer than two intervals' fails without the condition; review rounds 2 and 3 confirmed the change; jest 129, Galata 79 of 79 on the local build of 2026-10-13 16:20" -> "the interval callback of Follower takes no look while one is under way (the condition gained !this._busy), so looked is raised once per look; jest follow.spec 'DEF-LIVE-31 signals one look for a look that lasts longer than two intervals' fails without the condition; review rounds 2 to 5 confirmed the change; jest 129, Galata 79 of 79 on the local build of 2026-10-13 17:00"; reason: the runs are those of the final build
 
 ## Notes panel `PANEL`
 
@@ -176,6 +217,20 @@ Defects of the Galata suite itself
   - root-cause: 2026-09-28T18:48:40Z @kj painted() read once after the marker reached disk, while the paint runs one animation frame after the write returns; a poll callback threw on the blank frame document during the reload after Trust, and a throwing expect.poll callback ends the poll
   - log: 2026-09-28T18:48:40Z @kj added
   - log: 2026-09-28T18:53:27Z @kj closed: fixed
+- [x] `DEF-TEST-32` **The mark helper of the browser tests returns before the viewer has finished the mark** - MINOR; Galata 'ACC-STORE-25 changes the file by the markers alone' failed 2 times in about 125 runs, both under CPU load: the second mark found no Mark entry, or no menu. The helper returned when the file held the marker; the viewer then cleared the selection the test had made for its next mark.
+  - evidence: mark() in ui-tests/tests/helpers.ts also waits until the selection in the page is collapsed, which the viewer does when it has finished the mark; with it and the configuration line of DEF-TEST-33, Galata 'ACC-STORE-25 changes the file by the markers alone' passed 60 of 60 repetitions while jest ran on the same machine, where 4 of about 185 runs had failed; marks.spec 20 of 20 on the final build
+  - repro: Run tests/marks.spec.ts -g ACC-STORE-25 --repeat-each 100 while jest runs on the same machine: repetition 49 timed out waiting for the Mark entry; the menu held Refresh View, Show notes minimap and Hide notes only
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-13T14:18:38Z @kj mark() in ui-tests/tests/helpers.ts polled the file on disk for the new marker. The server writes the file before it replies; the viewer handles the reply afterwards, paints the mark and clears the selection (ACC-MARK-41). A selection made in between is cleared with it.
+  - log: 2026-10-13T14:18:38Z @kj added; reason: names the test, the rate, the two symptoms and the sequence
+  - log: 2026-10-13T15:13:49Z @kj closed; reason: names the change, the repetition run and the rate before
+- [x] `DEF-TEST-33` **The Welcome tab of another extension takes the front during a browser test** - MINOR; Galata 'ACC-STORE-25 changes the file by the markers alone' found no context menu on its first right-click, 2 times in about 185 runs, both under processor load: the lab's Welcome tab was in front of the viewer the test had opened.
+  - evidence: ui-tests/jupyter_server_test_config.py sets c.GalaxaHubMotd.open_on_start = False, the switch the jupyterlab-extension skill names for a startup tab; with it and the helper change of DEF-TEST-32, Galata 'ACC-STORE-25 ...' passed 60 of 60 repetitions under processor load; Galata 79 of 79 in five suites on the local build of 2026-10-13 17:00
+  - repro: Run tests/marks.spec.ts -g ACC-STORE-25 --repeat-each 60 while jest runs on the same machine: repetition 31 fails at the first openMenu, and the page snapshot shows the tabs bytes.html and Welcome with Welcome selected
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-13T15:01:36Z @kj jupyterlab_galaxahub_motd_extension, installed on this workstation, opens its Welcome tab some time after the lab has started. ui-tests/jupyter_server_test_config.py left that switch on, so a test that had opened its document by then lost the front tab. The fixture override in helpers.ts only stops the tests waiting for the Launcher.
+  - log: 2026-10-13T15:01:36Z @kj added
+  - log: 2026-10-13T15:13:49Z @kj closed; reason: names the configuration line, its source and the repetition run
 
 ## Agent skill `AGENT`
 

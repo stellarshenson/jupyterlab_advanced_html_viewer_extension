@@ -81,6 +81,78 @@ describe('following the file on disk', () => {
     expect(loaded).toBe(1);
   });
 
+  it('DEF-LIVE-30 signals every look it takes at its interval, after the change the look loaded', async () => {
+    jest.useFakeTimers();
+    try {
+      const context = fakeContext('<p>old</p>');
+      const contents = fakeContents('<p>new</p>', 'h2');
+      const follower = new Follower({ context, contents, interval: 2000 });
+      followers.push(follower);
+      const seen: string[] = [];
+      follower.loaded.connect(() => seen.push('loaded'));
+      follower.looked.connect(() => seen.push('looked'));
+      await jest.advanceTimersByTimeAsync(2000);
+      expect(seen).toEqual(['loaded', 'looked']);
+      await jest.advanceTimersByTimeAsync(2000);
+      expect(seen).toEqual(['loaded', 'looked', 'looked']);
+      // A look another part of the viewer asks for is not one of them.
+      await follower.check();
+      expect(seen).toEqual(['loaded', 'looked', 'looked']);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('DEF-LIVE-31 signals one look for a look that lasts longer than two intervals', async () => {
+    jest.useFakeTimers();
+    try {
+      const context = fakeContext('<p>old</p>');
+      const contents = fakeContents('<p>new</p>', 'h2');
+      const read = contents.get.getMockImplementation();
+      // The content read is answered after five seconds.
+      contents.get = jest.fn(async (path: string, options: any) => {
+        if (options.content) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        return read(path, options);
+      });
+      const follower = new Follower({ context, contents, interval: 2000 });
+      followers.push(follower);
+      const seen: string[] = [];
+      follower.loaded.connect(() => seen.push('loaded'));
+      follower.looked.connect(() => seen.push('looked'));
+      await jest.advanceTimersByTimeAsync(7500);
+      expect(seen).toEqual(['loaded', 'looked']);
+      // The next beat takes the next look.
+      await jest.advanceTimersByTimeAsync(500);
+      expect(seen).toEqual(['loaded', 'looked', 'looked']);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('DEF-LIVE-28 gives every view of a document one follower, which ends with its last view', () => {
+    const context = fakeContext('<p>text</p>');
+    const contents = fakeContents('<p>text</p>', 'h1');
+    const first = Follower.hold({ context, contents, interval: 1e9 });
+    const second = Follower.hold({ context, contents, interval: 1e9 });
+    expect(second).toBe(first);
+    Follower.release(first);
+    expect(first.isDisposed).toBe(false);
+    Follower.release(second);
+    expect(first.isDisposed).toBe(true);
+    const third = Follower.hold({ context, contents, interval: 1e9 });
+    followers.push(third);
+    expect(third).not.toBe(first);
+    const other = Follower.hold({
+      context: fakeContext('<p>other</p>'),
+      contents,
+      interval: 1e9
+    });
+    followers.push(other);
+    expect(other).not.toBe(third);
+  });
+
   it('DEF-LIVE-4 takes the line ending of the text it loads', async () => {
     const context = fakeContext('<p>old</p>\n');
     context._lineEnding = null;

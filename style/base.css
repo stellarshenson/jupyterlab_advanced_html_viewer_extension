@@ -700,18 +700,29 @@ body[data-jp-theme-light='false']
 }
 
 /*
- * Tab marker while changes from disk arrive (src/cue.ts): a half-filled
- * circle before the label, turning half a turn at a time, so its filled half
- * swaps between left and right. One frame is half the animation, so the
- * durations below are two frames: 1 s, 0.75 s, 0.5 s or 0.25 s a frame as
- * more changes arrive. It takes the tab's own text colour, so the tab keeps
- * whatever colour another extension gave it.
+ * Tab marker (src/cue.ts): a half-filled circle before the label. While
+ * changes from disk arrive it alternates with its mirror image, so its
+ * filled half swaps between left and right. It takes the tab's own text
+ * colour, so the tab keeps whatever colour another extension gave it.
+ *
+ * The two frames are two characters, each drawn where the font draws it. One
+ * character turned half a turn changed height on the tab at every frame: the
+ * turn is about the centre of the marker's box, which is as tall as the
+ * tab's line, and no font draws the circle exactly at that centre
+ * (DEF-LIVE-27).
+ *
+ * The marker moves only while changes arrive. One run of the animation is
+ * two frames, so the durations below are two frames: 1 s, 0.75 s, 0.5 s or
+ * 0.25 s a frame as more changes arrive.
  */
 .lm-TabBar-tab.jp-AdvancedHtml-tabChanging .lm-TabBar-tabLabel::before {
   display: inline-block;
   margin-right: 5px;
   content: '\25D0';
-  animation: jp-AdvancedHtml-tab-turn 2s steps(2, end) infinite;
+}
+
+.lm-TabBar-tab.jp-AdvancedHtml-tabArriving .lm-TabBar-tabLabel::before {
+  animation: jp-AdvancedHtml-tab-turn 2s step-end infinite;
 }
 
 .lm-TabBar-tab.jp-AdvancedHtml-tabFrame750 .lm-TabBar-tabLabel::before {
@@ -726,8 +737,22 @@ body[data-jp-theme-light='false']
   animation-duration: 0.5s;
 }
 
+/*
+ * Changes nobody has looked at: they arrived while the tab was behind
+ * another. Once they stop, the marker stands there as a star with six
+ * teardrop spokes (U+273B) until the tab is brought to the front
+ * (ACC-LIVE-79). It is drawn one level brighter than the label: JupyterLab
+ * gives the label of a tab that is not selected the theme's text colour 1,
+ * and the star takes text colour 0, which a dark theme makes brighter and a
+ * light theme darker.
+ */
+.lm-TabBar-tab.jp-AdvancedHtml-tabUnread .lm-TabBar-tabLabel::before {
+  color: var(--jp-ui-font-color0);
+  content: '\273B';
+}
+
 @keyframes jp-AdvancedHtml-tab-turn {
-  to {
-    transform: rotate(1turn);
+  50% {
+    content: '\25D1';
   }
 }

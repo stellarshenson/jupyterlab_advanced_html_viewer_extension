@@ -15,6 +15,12 @@
       "description": "The handle written on every note line you add, without the leading @. Empty writes @user, and you are asked for a handle the first time you write a note. Set note handle in the command palette puts the same question again.",
       "type": "string",
       "default": ""
+    },
+    "tabCue": {
+      "title": "Tab marker",
+      "description": "Show a marker on the tab of a file that changes on disk: a half circle whose filled half swaps sides while changes arrive, and a star for changes that arrived while the tab was behind another. Off shows no marker.",
+      "type": "boolean",
+      "default": true
     }
   },
   "additionalProperties": false

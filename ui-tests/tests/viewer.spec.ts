@@ -4,6 +4,7 @@ import * as path from 'path';
 
 import {
   FRAME,
+  PLUGIN_ID,
   SHOWN,
   fileText,
   frameText,
@@ -414,6 +415,11 @@ test('DEF-LIVE-22 a hidden page does not take the keyboard from the page of a se
   await trust(page);
   await openViewer(page, front, 'The page in front.');
   await trust(page);
+  // Trusting loads the page again. Its script has run once the list it
+  // makes is there, and only then is a point in the page measured.
+  await expect
+    .poll(() => inFrame<boolean>(page, 'return Array.isArray(win.keys);'))
+    .toBe(true);
   const at = await pointAt(page, 'The page in front.');
   await page.mouse.click(at.x, at.y);
   await page.keyboard.type('ab');
@@ -567,13 +573,50 @@ test('ACC-LIVE-12 shows a reply written to the file without loading the page aga
   expect(fileText(file)).toContain('@claude');
 });
 
+/** A page another program writes again and again. */
+const version = (n: number): string =>
+  `<!DOCTYPE html>\n<p>Version ${n} of the page.</p>\n`;
+
+/** The open views of a file, in the order they were opened. */
+const VIEWS = `Array.from(window.jupyterapp.shell.widgets('main')).filter(
+  each => each.context && each.context.path === target
+)`;
+
+/** Record every set of classes the tab of a file is given from now on. */
+function watchMarker(page: any, apiPath: string): Promise<void> {
+  return page.evaluate(
+    ([target, views]: [string, string]) => {
+      const view = new Function('target', `return ${views}[0];`)(target);
+      const seen: string[] = ((window as any).__marker = []);
+      view.title.changed.connect(() => seen.push(view.title.className));
+    },
+    [apiPath, VIEWS]
+  );
+}
+
+/**
+ * The colour one of the theme's text colour levels gives text, as the
+ * browser computes it: level 0 is the strongest, level 1 the usual one.
+ */
+const themeColour = (page: any, level: number): Promise<string> =>
+  page.evaluate((variable: string) => {
+    const probe = document.createElement('span');
+    probe.style.color = `var(${variable})`;
+    document.body.appendChild(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  }, `--jp-ui-font-color${level}`);
+
+/** The sets of classes recorded since {@link watchMarker}. */
+const markerSeen = (page: any): Promise<string[]> =>
+  page.evaluate(() => (window as any).__marker);
+
 test('ACC-LIVE-70 turns the tab marker faster the more changes arrive', async ({
   page,
   tmpPath
 }) => {
   const file = fixture(tmpPath, 'rate');
-  const version = (n: number) =>
-    `<!DOCTYPE html>\n<p>Version ${n} of the page.</p>\n`;
   writeFile(file, version(0));
   await openViewer(page, file, 'Version 0 of the page.');
   const tab = page.locator('.lm-TabBar-tab', { hasText: 'rate.html' });
@@ -592,25 +635,253 @@ test('ACC-LIVE-70 turns the tab marker faster the more changes arrive', async ({
       { timeout: 6000 }
     );
   }
+  // DEF-LIVE-27: the two frames are two characters, and neither is turned
+  // or moved. A character turned about the centre of its box changes height
+  // on the tab, because the font does not draw the circle at that centre.
+  // The animation is held at a quarter and at three quarters of one run and
+  // then let go, so the read does not depend on when it is made.
+  const frames = await tab
+    .locator('.lm-TabBar-tabLabel')
+    .evaluate((label: Element) => {
+      const animation = document.getAnimations().find(candidate => {
+        const effect = candidate.effect as any;
+        return effect?.target === label && effect?.pseudoElement === '::before';
+      });
+      if (!animation) {
+        throw new Error('the marker is not animated');
+      }
+      const duration = Number(
+        (animation.effect as any).getComputedTiming().duration
+      );
+      const was = animation.currentTime;
+      animation.pause();
+      const read = (fraction: number) => {
+        animation.currentTime = duration * fraction;
+        const style = getComputedStyle(label, '::before');
+        return { content: style.content, transform: style.transform };
+      };
+      const both = [read(0.25), read(0.75)];
+      animation.currentTime = was;
+      animation.play();
+      return { both, duration };
+    });
+  expect(frames.both).toEqual([
+    { content: '"◐"', transform: 'none' },
+    { content: '"◑"', transform: 'none' }
+  ]);
+  expect(frames.duration).toBe(500);
+  // The frame length above is read while the tab still carries the class of
+  // the fourth change, before anything else is waited for.
   await waitForText(page, 'Version 4 of the page.');
-  const marker = await tab
+  // Two looks without a change: the marker stands still as the half circle.
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabArriving/, {
+    timeout: 10000
+  });
+  const still = await tab
     .locator('.lm-TabBar-tabLabel')
     .evaluate((label: Element) => {
       const style = getComputedStyle(label, '::before');
-      return {
-        content: style.content,
-        timing: style.animationTimingFunction,
-        duration: style.animationDuration
-      };
+      return { content: style.content, animation: style.animationName };
     });
-  expect(marker.content).toBe('"◐"');
-  expect(marker.timing).toMatch(/steps\(2/);
-  expect(marker.duration).toBe('0.5s');
+  expect(still).toEqual({ content: '"◐"', animation: 'none' });
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabUnread/);
   // The tab is in front, so the marker goes once none of the last four looks
   // found a change.
   await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabChanging/, {
     timeout: 15000
   });
+});
+
+test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, until the tab is brought to the front', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'unread');
+  const other = fixture(tmpPath, 'front');
+  writeFile(file, version(0));
+  writeFile(other, '<!DOCTYPE html>\n<p>The page in front.</p>\n');
+  await openViewer(page, file, 'Version 0 of the page.');
+  await openViewer(page, other, 'The page in front.');
+  const tab = page.locator('.lm-TabBar-tab', { hasText: 'unread.html' });
+
+  writeFile(file, version(1));
+  await expect(tab).toHaveClass(/jp-AdvancedHtml-tabArriving/, {
+    timeout: 6000
+  });
+  // Two looks without a change, and nobody has looked: the star, standing
+  // still, one level brighter than the label. The label of a tab that is
+  // not selected has the theme's text colour 1, the star colour 0.
+  await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/, {
+    timeout: 10000
+  });
+  const unread = await tab
+    .locator('.lm-TabBar-tabLabel')
+    .evaluate((label: Element) => {
+      const style = getComputedStyle(label, '::before');
+      return {
+        content: style.content,
+        animation: style.animationName,
+        colour: style.color,
+        labelColour: getComputedStyle(label).color
+      };
+    });
+  expect(unread).toEqual({
+    content: '"✻"',
+    animation: 'none',
+    colour: await themeColour(page, 0),
+    labelColour: await themeColour(page, 1)
+  });
+  expect(unread.colour).not.toBe(unread.labelColour);
+  // Past the eight seconds a tab in front keeps its marker: behind, it waits.
+  await page.waitForTimeout(9000);
+  await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/);
+
+  // Selecting the tab is enough: none of the last four looks found a change,
+  // so the marker goes, with no click, key or scroll in the page.
+  await tab.click();
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabChanging/);
+  await waitForText(page, 'Version 1 of the page.');
+});
+
+test('DEF-LIVE-29 gives no unread marker to a change the reader watched, and takes its marker away on time behind another tab', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'watched');
+  const other = fixture(tmpPath, 'beside');
+  writeFile(file, version(0));
+  writeFile(other, '<!DOCTYPE html>\n<p>The other page.</p>\n');
+  await openViewer(page, other, 'The other page.');
+  await openViewer(page, file, 'Version 0 of the page.');
+  const tab = page.locator('.lm-TabBar-tab', { hasText: 'watched.html' });
+  await watchMarker(page, file);
+
+  writeFile(file, version(1));
+  await expect(tab).toHaveClass(/jp-AdvancedHtml-tabArriving/, {
+    timeout: 6000
+  });
+  // The reader saw the change arrive, and now selects the other tab.
+  await page.locator('.lm-TabBar-tab', { hasText: 'beside.html' }).click();
+  await expect(tab).not.toHaveClass(/lm-mod-current/);
+  await expect(tab).toHaveClass(/jp-AdvancedHtml-tabChanging/);
+  // Behind, the marker stands still and then leaves, as it does in front.
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tabChanging/, {
+    timeout: 15000
+  });
+  const seen = await markerSeen(page);
+  expect(seen.filter(each => /tabUnread/.test(each))).toEqual([]);
+  expect(seen.some(each => /tabChanging$/.test(each))).toBe(true);
+});
+
+test('ACC-LIVE-80 says in the tab tooltip what the marker means, above the tooltip of the document', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'words');
+  const other = fixture(tmpPath, 'ahead');
+  writeFile(file, version(0));
+  writeFile(other, '<!DOCTYPE html>\n<p>The page in front.</p>\n');
+  await openViewer(page, file, 'Version 0 of the page.');
+  await openViewer(page, other, 'The page in front.');
+  const tab = page.locator('.lm-TabBar-tab', { hasText: 'words.html' });
+  await expect(tab).toHaveAttribute('title', /^Name: words\.html\n/);
+
+  writeFile(file, version(1));
+  await expect(tab).toHaveAttribute(
+    'title',
+    /^The file changed on disk\. The page shows the new content\.\n\nName: words\.html\n/,
+    { timeout: 6000 }
+  );
+  await expect(tab).toHaveAttribute(
+    'title',
+    /^The file changed on disk while this tab was behind another\. The page shows the new content\.\n\nName: words\.html\n/,
+    { timeout: 10000 }
+  );
+  // In front the marker leaves, and the tooltip is the document's own again.
+  await tab.click();
+  await expect(tab).toHaveAttribute('title', /^Name: words\.html\n/, {
+    timeout: 10000
+  });
+});
+
+test('DEF-LIVE-28 marks both tabs of a file open in two views, and the second view goes on following when the first closes', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'twice');
+  writeFile(file, version(0));
+  await openViewer(page, file, 'Version 0 of the page.');
+  await page.evaluate(() =>
+    (window as any).jupyterapp.commands.execute('docmanager:clone')
+  );
+  const tabs = page.locator('.lm-TabBar-tab', { hasText: 'twice.html' });
+  await expect(tabs).toHaveCount(2);
+  /** Run a function over the open views of the file. */
+  const overViews = <T>(body: string): Promise<T> =>
+    page.evaluate(
+      ([target, views, code]: string[]) =>
+        new Function('target', `const views = ${views}; ${code}`)(target),
+      [file, VIEWS, body]
+    );
+  // One follower looks at the file for both views.
+  await expect
+    .poll(() =>
+      overViews<boolean>(
+        'return views.length === 2 && !!views[0].follower && views[0].follower === views[1].follower;'
+      )
+    )
+    .toBe(true);
+
+  writeFile(file, version(1));
+  await expect(tabs.nth(0)).toHaveClass(/jp-AdvancedHtml-tabArriving/, {
+    timeout: 6000
+  });
+  await expect(tabs.nth(1)).toHaveClass(/jp-AdvancedHtml-tabArriving/);
+
+  await overViews('views[0].close();');
+  await expect(tabs).toHaveCount(1);
+  await expect(tabs).not.toHaveClass(/jp-AdvancedHtml-tabChanging/, {
+    timeout: 15000
+  });
+  writeFile(file, version(2));
+  await expect(tabs).toHaveClass(/jp-AdvancedHtml-tabArriving/, {
+    timeout: 6000
+  });
+  await waitForText(page, 'Version 2 of the page.');
+});
+
+test('ACC-LIVE-81 the Tab marker setting takes the marker off the tab and shows none after', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'quiet');
+  writeFile(file, version(0));
+  await openViewer(page, file, 'Version 0 of the page.');
+  const tab = page.locator('.lm-TabBar-tab', { hasText: 'quiet.html' });
+  await page.evaluate(() =>
+    (window as any).jupyterapp.commands.execute('settingeditor:open', {
+      query: 'Advanced HTML Viewer'
+    })
+  );
+  const box = page.locator(
+    `#jp-SettingsEditor-${PLUGIN_ID.replace(':', '\\:')}_tabCue`
+  );
+  await expect(box).toBeChecked();
+  // The viewer is behind the settings editor, so the change is unread and
+  // its unread marker stays for as long as the setting is on.
+  writeFile(file, version(1));
+  await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/, {
+    timeout: 12000
+  });
+
+  await box.uncheck();
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tab/);
+  await expect(tab).toHaveAttribute('title', /^Name: quiet\.html\n/);
+  // A change that arrives now is loaded, and the tab shows no marker for it.
+  await tab.click();
+  writeFile(file, version(2));
+  await waitForText(page, 'Version 2 of the page.');
+  await expect(tab).not.toHaveClass(/jp-AdvancedHtml-tab/);
 });
 
 test('ACC-ORIGIN-75 opens a page holding a 10 MB script within 400 MB of heap', async ({

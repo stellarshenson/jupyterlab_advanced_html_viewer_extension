@@ -121,12 +121,19 @@ function colourOf(value: unknown): MarkColour {
     : DEFAULT_COLOUR;
 }
 
+/** The settings this extension reads. */
+interface ISettings extends INotesSettings {
+  /** Whether a viewer's tab shows the marker of changes from disk. */
+  tabCue: boolean;
+}
+
 /** The settings this extension reads, with their defaults. */
-function readSettings(
-  settings: ISettingRegistry.ISettings | null
-): INotesSettings {
+function readSettings(settings: ISettingRegistry.ISettings | null): ISettings {
   const author = settings?.composite.author;
-  return { author: typeof author === 'string' ? author : '' };
+  return {
+    author: typeof author === 'string' ? author : '',
+    tabCue: settings?.composite.tabCue !== false
+  };
 }
 
 const plugin: JupyterFrontEndPlugin<void> = {
@@ -229,6 +236,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       if (trustByDefault) {
         viewer.trusted = true;
       }
+      viewer.tabCue = current.tabCue;
       viewer.title.icon = html5Icon;
       void tracker.add(viewer);
       viewer.context.pathChanged.connect(() => void tracker.save(viewer));
@@ -476,6 +484,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
             current = readSettings(settings);
             for (const attachment of attachments.values()) {
               attachment.notes.updateSettings(current);
+              attachment.viewer.tabCue = current.tabCue;
             }
           };
           handle.settings = settings;

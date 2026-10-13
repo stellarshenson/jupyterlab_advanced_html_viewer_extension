@@ -166,11 +166,18 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       });
       this._monitor.activityStopped.connect(this._onSettled, this);
       if (options.contents) {
-        this._follower = new Follower({
+        this._follower = Follower.hold({
           context: this.context,
           contents: options.contents
         });
-        this._cue = new TabCue(this, this._follower);
+        this._cue = new TabCue(
+          this,
+          this._follower,
+          (options.translator ?? nullTranslator).load(
+            'jupyterlab_advanced_html_viewer_extension'
+          )
+        );
+        this._cue.enabled = this._tabCue;
       }
     });
   }
@@ -217,6 +224,17 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     return this._follower;
   }
 
+  /** Whether the tab shows the marker of changes from disk. */
+  get tabCue(): boolean {
+    return this._tabCue;
+  }
+  set tabCue(value: boolean) {
+    this._tabCue = value;
+    if (this._cue) {
+      this._cue.enabled = value;
+    }
+  }
+
   /** Whether the page's scripts run. */
   get trusted(): boolean {
     return this.content.sandbox.includes('allow-scripts');
@@ -258,7 +276,9 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     this._focused = null;
     this._monitor?.dispose();
     this._cue?.dispose();
-    this._follower?.dispose();
+    if (this._follower) {
+      Follower.release(this._follower);
+    }
     if (this._url) {
       URL.revokeObjectURL(this._url);
     }
@@ -417,6 +437,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   private _monitor: ActivityMonitor<unknown, unknown> | null = null;
   private _follower: Follower | null = null;
   private _cue: TabCue | null = null;
+  private _tabCue = true;
   private _focused: HTMLElement | null = null;
   private _url = '';
   private _pending: IAnalysis | null = null;
