@@ -2,13 +2,31 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.37] - 2026-10-13
+
+### Added
+
+- A star (✻) on the tab marks changes that arrived while the tab was behind another one. It stays until the tab is brought to the front
+- The tooltip of the tab says what the marker on it means
+- The setting **Tab marker** (`tabCue`) switches the marker off
+
+### Changed
+
+- The tab marker is two characters shown in turn, faster the more often changes arrive. It moves only while changes arrive
+- Every view of a file shows the marker, and the views of one file share one check of the file, so the server is asked once
+
+### Fixed
+
+- The tab marker changed height between its two frames
+- With two tabs open on the same file, a change marked only one of them
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.36] - 2026-10-02
 
 ### Fixed
 
 - The page no longer shows a bright rim along its inside edge when the viewer's tab comes back to the front. The rim was the browser's focus outline on the box that holds the page, which went away after a click into the page; JupyterLab's own rule against that outline did not reach the box beside the notes panel
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.34] - 2026-10-02
 
