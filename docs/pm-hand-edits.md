@@ -1,0 +1,1 @@
+- 2026-10-16T10:00:38Z @kj acc-crit-advanced-html-viewer.md 7044aab9 sha256:27f4597ae198d750ab485e05ff97444e7540d205b93d222aba44044345c7f029: edit copied the old evidence of ACC-LIVE-79 into a log line with the glyph U+273B, which check refuses; the log line gets the code point instead of the glyph, no other change

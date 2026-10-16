@@ -9,8 +9,8 @@
  * did. Once two looks have found no change the marker stands still, and once
  * none of the four holds a change it leaves the tab. A change that arrived
  * while the tab was behind another is one the reader has not looked at: its
- * marker becomes a star where it would stand still, and stays until the tab
- * is brought to the front.
+ * marker becomes a green dot where it would stand still, and stays until the
+ * tab is brought to the front.
  *
  * The cue has no timer. It moves when the follower loads a change, when a
  * look of the follower finishes and when the tab comes to the front.
@@ -32,8 +32,8 @@ export const TAB_ARRIVING_CLASS = 'jp-AdvancedHtml-tabArriving';
 
 /**
  * Class of that tab once changes that arrived while it was behind another
- * have stopped: the marker is a star, for changes the reader has not looked
- * at.
+ * have stopped: the marker is a green dot, for changes the reader has not
+ * looked at.
  */
 export const TAB_UNREAD_CLASS = 'jp-AdvancedHtml-tabUnread';
 

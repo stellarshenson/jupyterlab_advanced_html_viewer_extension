@@ -13,10 +13,10 @@ import {
   comments,
   IComment,
   IMarkAttribute,
+  IMarksSettings,
   isMarker,
   ISpan,
   MarkColour,
-  PanelState,
   serialiseSettings
 } from './marks';
 
@@ -190,19 +190,24 @@ export function documentMarkerEdit(
 
 /**
  * The edits that leave the file holding exactly one settings marker, on a line
- * of its own after the file's last content.
+ * of its own after the file's last content, or none where the settings hold
+ * nothing.
  *
  * Every settings marker already there is deleted, whatever it says, so one
  * this version cannot read is replaced rather than left broken. A marker in
  * the trailing whitespace falls under the edit that writes the new one.
  *
  * @param markers - where the settings markers sit
+ * @param settings - what the one marker left says
  */
 export function settingsEdits(
   source: string,
   markers: ISpan[],
-  state: PanelState
+  settings: IMarksSettings
 ): ISourceEdit[] {
+  if (!settings.panel && !settings.trust) {
+    return markerEdits(source, markers);
+  }
   const deletions = markers.map(span => markerSpan(source, span));
   let tail = source.length;
   while (tail > 0) {
@@ -243,7 +248,7 @@ export function settingsEdits(
   edits.push({
     start: tail,
     end: source.length - kept,
-    text: `${tail > 0 ? '\n' : ''}${serialiseSettings({ panel: state })}${rest.slice(0, rest.length - kept)}`
+    text: `${tail > 0 ? '\n' : ''}${serialiseSettings(settings)}${rest.slice(0, rest.length - kept)}`
   });
   return edits;
 }

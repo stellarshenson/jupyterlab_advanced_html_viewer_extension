@@ -18,7 +18,7 @@
     },
     "tabCue": {
       "title": "Tab marker",
-      "description": "Show a marker on the tab of a file that changes on disk: a half circle whose filled half swaps sides while changes arrive, and a star for changes that arrived while the tab was behind another. Off shows no marker.",
+      "description": "Show a marker on the tab of a file that changes on disk: a half circle whose filled half swaps sides while changes arrive, and a green dot for changes that arrived while the tab was behind another. Off shows no marker.",
       "type": "boolean",
       "default": true
     }

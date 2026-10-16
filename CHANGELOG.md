@@ -2,6 +2,24 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.45] - 2026-10-16
+
+### Added
+
+- Trust HTML remembers trust in the file: it writes this lab's signature of the file's path into the file's settings line, so the file opens trusted next time, also after an agent rewrites it, while that line stays. Distrust HTML takes the signature out. A signature made in another lab, or for another path, trusts nothing, so a downloaded file cannot trust itself
+- This release adds a server route; restart the JupyterLab server and reload the browser after the upgrade
+
+### Changed
+
+- Changes that arrived while the tab was behind another now leave a green dot before the tab's name instead of the star: 7 px, #116329 on light themes and #66bb6a on dark ones, centred on the height of the name's capitals and digits, and visible in forced-colours mode
+- The settings line holds the state of the notes panel only where the reader chose one
+
+### Fixed
+
+- Rerender HTML Document no longer stays pressed after a click
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.37] - 2026-10-13
 
 ### Added
@@ -19,8 +37,6 @@
 
 - The tab marker changed height between its two frames
 - With two tabs open on the same file, a change marked only one of them
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.36] - 2026-10-02
 

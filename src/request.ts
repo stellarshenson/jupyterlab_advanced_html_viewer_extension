@@ -54,3 +54,24 @@ export async function fetchAPI(
   }
   return { response, data };
 }
+
+/**
+ * The lab's signature of a file's path, which the file's settings marker
+ * carries to open trusted; null where the server gives none.
+ */
+export async function trustSignature(
+  serverSettings: ServerConnection.ISettings,
+  path: string
+): Promise<string | null> {
+  try {
+    const { response, data } = await fetchAPI(
+      `trust${URLExt.objectToQueryString({ path })}`,
+      serverSettings
+    );
+    return response.ok && typeof data?.signature === 'string'
+      ? data.signature
+      : null;
+  } catch {
+    return null;
+  }
+}

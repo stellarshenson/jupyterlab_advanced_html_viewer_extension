@@ -48,7 +48,8 @@ DOM is never touched.
 
 **Architecture**:
 
-- **Frontend** (TypeScript, `src/`) - `viewer.ts` the widget, trust and refresh, render on a
+- **Frontend** (TypeScript, `src/`) - `viewer.ts` the widget, trust and refresh (opens trusted
+  where the settings marker carries the server's signature of the file's path), render on a
   non-marker change only, hidden by content-visibility and never `display: none` so the frame keeps
   its size and scroll position behind another tab, and gives the keyboard back when a hidden page
   takes it; `follow.ts` loads a change on disk; `marks.ts` the marker grammar of the
@@ -58,7 +59,8 @@ DOM is never touched.
 - **Server** (Python, `jupyterlab_advanced_html_viewer_extension/routes.py`) - `POST write`, the
   compare-and-write route a marker write sends its edits to; the server makes them in the file
   text itself, so each line keeps its ending, and answers 400 to edits that would join a CR and an
-  LF (the browser then saves through the document)
+  LF (the browser then saves through the document); `GET trust`, the HMAC of a path with the
+  notebook signing secret, which Trust HTML writes into the settings marker
 - **Cost on a large file** - a file can be megabytes of embedded images or script, so: the route
   takes the edits and not the text; `src/parse.ts` parses with parse5's tokenizer taking a run of
   plain characters in one piece (`src/__tests__/parse.spec.ts` holds its tree to parse5's);
@@ -171,4 +173,5 @@ A command-line tool the extension ships (an entry point under `[project.scripts]
   real browser session behind it
 - **Untrusted HTML never runs scripts** - an untrusted file renders in a sandboxed frame without
   `allow-scripts`, as the built-in HTML viewer does; no feature of this extension may widen the
-  sandbox before the user trusts the file
+  sandbox before the user trusts the file; a trust marker counts only with this lab's signature of
+  the file's path, never as a value a file can carry by itself

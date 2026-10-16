@@ -23,7 +23,7 @@ import {
   DocumentRegistry,
   DocumentWidget
 } from '@jupyterlab/docregistry';
-import { Contents } from '@jupyterlab/services';
+import { Contents, ServerConnection } from '@jupyterlab/services';
 import {
   ITranslator,
   nullTranslator,
@@ -33,7 +33,6 @@ import {
   IFrame,
   ReactWidget,
   refreshIcon,
-  ToolbarButton,
   ToolbarButtonComponent,
   UseSignal
 } from '@jupyterlab/ui-components';
@@ -43,6 +42,8 @@ import * as React from 'react';
 
 import { TabCue } from './cue';
 import { Follower } from './follow';
+import { parseSettings } from './marks';
+import { trustSignature } from './request';
 import { analyse, IAnalysis, IPageOptions } from './source';
 import { stripMarkers } from './store';
 
@@ -129,7 +130,10 @@ export interface IAdvancedHTMLViewerOptions extends DocumentWidget.IOptionsOptio
   IFrame,
   DocumentRegistry.ICodeModel
 > {
-  /** Where the follower reads the file from; no follower when left out. */
+  /**
+   * Where the follower reads the file from, with the server settings the
+   * trust check at open uses; no follower and no trust check when left out.
+   */
   contents?: Contents.IManager;
   translator?: ITranslator;
 }
@@ -155,16 +159,11 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     document.addEventListener('focusin', this._onFocusIn, true);
     window.addEventListener('blur', this._onBlur);
 
-    void this.context.ready.then(() => {
+    this._serverSettings = options.contents?.serverSettings ?? null;
+    void this.context.ready.then(async () => {
       if (this.isDisposed) {
         return;
       }
-      void this._render();
-      this._monitor = new ActivityMonitor({
-        signal: this.context.model.contentChanged,
-        timeout: RENDER_TIMEOUT
-      });
-      this._monitor.activityStopped.connect(this._onSettled, this);
       if (options.contents) {
         this._follower = Follower.hold({
           context: this.context,
@@ -179,6 +178,17 @@ export class AdvancedHTMLViewer extends DocumentWidget<
         );
         this._cue.enabled = this._tabCue;
       }
+      // A change that settles during the trust check renders nothing before
+      // it: the first render reads the document as it is by then.
+      await this._open();
+      if (this.isDisposed) {
+        return;
+      }
+      this._monitor = new ActivityMonitor({
+        signal: this.context.model.contentChanged,
+        timeout: RENDER_TIMEOUT
+      });
+      this._monitor.activityStopped.connect(this._onSettled, this);
     });
   }
 
@@ -248,6 +258,20 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       : [...SANDBOX.common];
     void this._render();
     this._trustedChanged.emit(value);
+  }
+
+  /**
+   * Emitted when the reader trusts or distrusts the page, which the notes
+   * controller records in the file; trust set any other way records nothing.
+   */
+  get trustChosen(): ISignal<this, boolean> {
+    return this._trustChosen;
+  }
+
+  /** Trust or distrust the page at the reader's word. */
+  chooseTrust(value: boolean): void {
+    this.trusted = value;
+    this._trustChosen.emit(value);
   }
 
   /** Emitted when the page is trusted or distrusted. */
@@ -350,6 +374,45 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     }, 0);
   };
 
+  /**
+   * The first render, trusted where the file's settings marker carries the
+   * lab's signature of the file's path (ACC-VIEW-85). The signature is asked
+   * for before the page loads, so a trusted page never loads without its
+   * scripts first. Any other value, and a server that gives no signature,
+   * trusts nothing (ACC-VIEW-86). The marker is read from the comments as the
+   * parser finds them, as the notes controller reads and writes it: a plain
+   * scan takes a '<!--' inside a script for the start of a comment.
+   */
+  private async _open(): Promise<void> {
+    const source = this.context.model.toString();
+    const trust = source.includes(' trust=')
+      ? parseSettings(analyse(source, pageOptions(false, null, '')).comments)
+          .settings?.trust
+      : undefined;
+    if (trust && !this.trusted && this._serverSettings) {
+      const signature = await trustSignature(
+        this._serverSettings,
+        this.context.localPath
+      );
+      if (this.isDisposed) {
+        return;
+      }
+      if (signature === trust) {
+        this.trusted = true;
+      }
+    }
+    // The trusted setter renders when trust changes, also at a Trust click
+    // during the check. Render here where no render is under way and the
+    // frame does not show the document's text, as after the setter rendered
+    // the still-empty document before it was ready (trustByDefault).
+    if (
+      !this._rendering &&
+      !this.showsSameText(this.context.model.toString())
+    ) {
+      void this._render();
+    }
+  }
+
   /** The document stopped changing: render, unless only markers moved. */
   private _onSettled(): void {
     if (!this.showsSameText(this.context.model.toString())) {
@@ -448,22 +511,28 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   private _scroll: { x: number; y: number } | null = null;
   private _pageLoaded = new Signal<this, IPage | null>(this);
   private _trustedChanged = new Signal<this, boolean>(this);
+  private _trustChosen = new Signal<this, boolean>(this);
+  private _serverSettings: ServerConnection.ISettings | null;
 }
 
 /**
  * The toolbar button that reads the file again and renders it, as the
- * built-in viewer's.
+ * built-in viewer's. It is built from the button component and not from
+ * ToolbarButton, which flips a pressed state at every click: a one-shot
+ * action has none to show (ACC-VIEW-87).
  */
 export function createRefreshButton(
   viewer: AdvancedHTMLViewer,
   translator?: ITranslator
 ): Widget {
   const trans = (translator ?? nullTranslator).load('jupyterlab');
-  return new ToolbarButton({
-    icon: refreshIcon,
-    onClick: () => void viewer.refresh(),
-    tooltip: trans.__('Rerender HTML Document')
-  });
+  return ReactWidget.create(
+    React.createElement(ToolbarButtonComponent, {
+      icon: refreshIcon,
+      onClick: () => void viewer.refresh(),
+      tooltip: trans.__('Rerender HTML Document')
+    })
+  );
 }
 
 /**
@@ -482,11 +551,12 @@ export function createTrustButton(
       children: () =>
         React.createElement(ToolbarButtonComponent, {
           className: '',
-          onClick: () => (viewer.trusted = !viewer.trusted),
-          tooltip: trans.__(`Whether the HTML file is trusted.
+          onClick: () => viewer.chooseTrust(!viewer.trusted),
+          tooltip: `${trans.__(`Whether the HTML file is trusted.
 Trusting the file allows opening pop-ups and running scripts
 which may result in security risks.
-Only enable for files you trust.`),
+Only enable for files you trust.`)}
+${trans.__("Trusting writes this lab's signature of the file's path into the file, so the file opens trusted again while that line stays; distrusting removes it.")}`,
           label: viewer.trusted
             ? trans.__('Distrust HTML')
             : trans.__('Trust HTML')

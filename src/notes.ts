@@ -34,6 +34,7 @@ import {
   DOCUMENT_TYPE,
   IMark,
   IMarkContent,
+  IMarksSettings,
   INoteEntry,
   ISpan,
   known,
@@ -50,7 +51,7 @@ import {
 import { openingState } from './notes-panel';
 import { PageMap, SelectionResult } from './origin';
 import { CLOSED_HIGHLIGHT, flash, highlightName, paint } from './paint';
-import { fetchAPI } from './request';
+import { fetchAPI, trustSignature } from './request';
 import { analyse, IAnalysis, passageText } from './source';
 import {
   applyEdits,
@@ -203,6 +204,10 @@ export class NotesController implements IDisposable {
     document.body.appendChild(this._tooltip);
 
     this._viewer.pageLoaded.connect(this._onPage, this);
+    this._viewer.trustChosen.connect(
+      (_, trusted) => void this.setTrust(trusted),
+      this
+    );
     void this._viewer.context.ready.then(() => {
       if (this._disposed) {
         return;
@@ -475,18 +480,65 @@ export class NotesController implements IDisposable {
     // file holding the state the reader has moved on from, and leaves this
     // one be.
     this._state = state;
-    this._panelWrites++;
+    this._panelChosen = true;
+    const written = this._writeSettings();
     this._changed.emit();
+    await written;
+  }
+
+  /**
+   * Store the reader's trust in the file: the lab's signature of the file's
+   * path while the page is trusted, nothing once it is not. Where the file
+   * cannot be written or the server gives no signature, the trust holds for
+   * this session only, and a signature that arrives after the reader changed
+   * their choice is dropped.
+   */
+  async setTrust(trusted: boolean): Promise<void> {
+    if (this._viewer.context.contentsModel?.writable === false) {
+      return;
+    }
+    const trust = trusted
+      ? await trustSignature(
+          this._serverSettings,
+          this._viewer.context.localPath
+        )
+      : null;
+    if (
+      (trusted && !trust) ||
+      trust === this._trust ||
+      this._disposed ||
+      this._viewer.trusted !== trusted
+    ) {
+      return;
+    }
+    this._trust = trust;
+    await this._writeSettings();
+  }
+
+  /**
+   * Write the settings marker with the trust and the panel state, the panel
+   * state only where the reader chose one: a file that holds none opens its
+   * panel by whether it has marks.
+   */
+  private async _writeSettings(): Promise<void> {
+    this._settingsWrites++;
     try {
-      await this._write(source =>
-        settingsEdits(
+      await this._write(source => {
+        const settings: IMarksSettings = {};
+        if (this._panelChosen) {
+          settings.panel = this._state;
+        }
+        if (this._trust) {
+          settings.trust = this._trust;
+        }
+        return settingsEdits(
           source,
           settingsSpans(this._analysis?.comments ?? []),
-          this._state
-        )
-      );
+          settings
+        );
+      });
     } finally {
-      this._panelWrites--;
+      this._settingsWrites--;
     }
   }
 
@@ -677,11 +729,12 @@ export class NotesController implements IDisposable {
         ? page.analysis
         : analyse(source, options);
     this._marks = parseMarks(this._analysis.comments);
-    const stored =
-      parseSettings(this._analysis.comments).settings?.panel ?? null;
-    if (this._panelWrites === 0) {
-      if (stored) {
-        this._state = stored;
+    const stored = parseSettings(this._analysis.comments).settings;
+    if (this._settingsWrites === 0) {
+      this._trust = stored?.trust ?? null;
+      this._panelChosen = !!stored?.panel;
+      if (stored?.panel) {
+        this._state = stored.panel;
       } else if (!this._opened) {
         this._state = openingState(
           null,
@@ -1050,7 +1103,9 @@ export class NotesController implements IDisposable {
   private _listed: IListedMark[] = [];
   private _state: PanelState = 'hidden';
   private _opened = false;
-  private _panelWrites = 0;
+  private _settingsWrites = 0;
+  private _panelChosen = false;
+  private _trust: string | null = null;
   private _showClosed = false;
   private _selection: ISelectionRecord | null = null;
   private _routeAbsent = false;

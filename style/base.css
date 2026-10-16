@@ -739,16 +739,31 @@ body[data-jp-theme-light='false']
 
 /*
  * Changes nobody has looked at: they arrived while the tab was behind
- * another. Once they stop, the marker stands there as a star with six
- * teardrop spokes (U+273B) until the tab is brought to the front
- * (ACC-LIVE-79). It is drawn one level brighter than the label: JupyterLab
- * gives the label of a tab that is not selected the theme's text colour 1,
- * and the star takes text colour 0, which a dark theme makes brighter and a
- * light theme darker.
+ * another. Once they stop, the marker stands there as a filled round dot
+ * until the tab is brought to the front (ACC-LIVE-79). A box and not a
+ * character, so its colour holds whatever colour another extension gives the
+ * tab's text. The two greens are the ones the Star Colonel chose for both
+ * viewers: 6.37:1 on a light theme's tab (#eee), 4.25:1 on a dark one's
+ * (#424242). The dot is centred on the height of capitals and digits, which
+ * stand taller than the lowercase letters middle alignment centres on. Forced
+ * colours would paint its background in the tab's own colour and hide it.
  */
+:root {
+  --jp-AdvancedHtml-unread: #116329;
+}
+
+body[data-jp-theme-light='false'] {
+  --jp-AdvancedHtml-unread: #66bb6a;
+}
+
 .lm-TabBar-tab.jp-AdvancedHtml-tabUnread .lm-TabBar-tabLabel::before {
-  color: var(--jp-ui-font-color0);
-  content: '\273B';
+  width: 7px;
+  height: 7px;
+  vertical-align: calc((1cap - 7px) / 2);
+  content: '';
+  background-color: var(--jp-AdvancedHtml-unread);
+  border-radius: 50%;
+  forced-color-adjust: none;
 }
 
 @keyframes jp-AdvancedHtml-tab-turn {

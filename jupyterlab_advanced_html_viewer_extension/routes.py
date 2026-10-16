@@ -1,13 +1,15 @@
-"""HTTP route of the server extension.
+"""HTTP routes of the server extension.
 
-One route under the namespace `jupyterlab-advanced-html-viewer-extension`: `write` makes edits in
+Two routes under the namespace `jupyterlab-advanced-html-viewer-extension`. `write` makes edits in
 a file only while it still carries the hash the browser holds. The viewer writes a mark into the
 file through it, so a file another process rewrote meanwhile is refused rather than overwritten,
 and the browser raises no File Changed dialog for a write it made itself. The browser sends the
 edits and not the file, so a mark in a file of several megabytes is a request of a few hundred
-bytes.
+bytes. `trust` gives the signature with which a file records that the reader trusted it.
 """
 import asyncio
+import hashlib
+import hmac
 import json
 from bisect import bisect_left
 
@@ -21,6 +23,7 @@ from jupyter_server.utils import url_path_join
 NAMESPACE = "jupyterlab-advanced-html-viewer-extension"
 LOCKS_KEY = "advanced_html_viewer_locks"
 CRLF = "\r\n".encode("utf-16-le")
+TRUST_PREFIX = f"{NAMESPACE} trust\n".encode()
 
 
 def valid_edits(edits):
@@ -136,8 +139,38 @@ class WriteHandler(APIHandler):
         self.finish(json.dumps(model, default=json_default))
 
 
+def trust_signature(secret, path):
+    """The signature of a path: HMAC-SHA256 in hex over a fixed prefix and the path."""
+    return hmac.new(secret, TRUST_PREFIX + path.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+class TrustHandler(APIHandler):
+    """GET trust?path=<path> -> 200 {"signature"}.
+
+    The viewer writes the signature of a file's path into the file's settings marker when the
+    reader trusts the file, and opens trusted a file whose marker carries the signature of its own
+    path. The secret is the one the contents manager signs notebooks with, which never leaves the
+    server, so a marker written by hand, in another lab, or for another path matches nothing here.
+    400 without a path.
+    """
+
+    auth_resource = "contents"
+
+    @tornado.web.authenticated
+    @authorized(action="read", resource="contents")
+    async def get(self):
+        path = self.get_argument("path", "").strip("/")
+        if not path:
+            raise tornado.web.HTTPError(400, "path is required")
+        secret = self.contents_manager.notary.secret
+        self.finish(json.dumps({"signature": trust_signature(secret, path)}))
+
+
 def setup_route_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
-    handlers = [(url_path_join(base_url, NAMESPACE, "write"), WriteHandler)]
+    handlers = [
+        (url_path_join(base_url, NAMESPACE, "write"), WriteHandler),
+        (url_path_join(base_url, NAMESPACE, "trust"), TrustHandler),
+    ]
     web_app.add_handlers(host_pattern, handlers)

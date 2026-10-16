@@ -13,8 +13,9 @@ Read an HTML file in JupyterLab and comment on it. The viewer trusts and refresh
 ## Features
 
 - **Opens HTML files** - double-click an `.html` file; Trust HTML runs its scripts and Rerender HTML Document reads it again, as in the built-in viewer
+- **Remembers trust in the file** - Trust HTML writes this lab's signature of the file's path into the file's settings line, so the file opens trusted next time, also after an agent rewrites it, while the line stays; Distrust HTML takes it out. A signature made in another lab, or for another path, trusts nothing, so a downloaded file cannot trust itself
 - **Follows the file** - a change another program writes to the file shows within a few seconds; a change to the notes alone leaves the page as it is
-- **Marks the tab of a changed file** - while changes arrive, a half-filled circle before the tab's name swaps its filled half from side to side, faster the more changes arrive. Changes that arrived while the tab was behind another leave a star (✻) until you bring the tab to the front. The tab's tooltip says what the marker means, and the Tab marker setting switches it off
+- **Marks the tab of a changed file** - while changes arrive, a half-filled circle before the tab's name swaps its filled half from side to side, faster the more changes arrive. Changes that arrived while the tab was behind another leave a green dot until you bring the tab to the front. The tab's tooltip says what the marker means, and the Tab marker setting switches it off
 - **Marks in six colours** - select text, right-click and choose a colour under Mark, or Add Comment to write a note at once; Ctrl Shift M (Cmd Shift M on macOS) marks from the keyboard
 - **Only text written in the file takes a comment** - text a trusted page's scripts produce, and whatever an iframe, object or embed of the page shows, is refused
 - **Notes are stored in the file** - as HTML comments around the passage, which no browser shows, in the same form the advanced Markdown viewer writes

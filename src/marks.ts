@@ -157,7 +157,13 @@ export interface IMark extends IMarkContent {
  * Per-document settings held in the settings marker.
  */
 export interface IMarksSettings {
-  panel: PanelState;
+  /** The panel state the reader chose, absent while they have chosen none. */
+  panel?: PanelState;
+  /**
+   * The lab's signature of the file's path, written when the reader trusts
+   * the file; the file opens trusted while it matches (src/viewer.ts).
+   */
+  trust?: string;
 }
 
 /**
@@ -187,6 +193,9 @@ const CLOSING = new RegExp(`^\\s*/mark:(${UUID})\\s*$`);
 
 /** The settings marker, which is always a single line. */
 const SETTINGS = /^\s*marks:settings[ \t]*(.*)$/;
+
+/** The shape of a trust signature: SHA-256 in lowercase hex. */
+const TRUST = /^[0-9a-f]{64}$/;
 
 /** One attribute and the whitespace after it, matched where parsing stands. */
 const ATTRIBUTE = /([a-z][a-z0-9-]*)=(?:"([^"]*)"|([^\s"]+))[ \t]*/y;
@@ -629,10 +638,19 @@ export function parseSettings(source: string | IComment[]): IParsedSettings {
     }
     markers.push(comment.span);
     const attributes = parseAttributes(marker[1]);
-    const panel = attributes?.find(attribute => attribute.key === 'panel')
-      ?.value as PanelState | undefined;
+    const value = (key: string): string | undefined =>
+      attributes?.find(attribute => attribute.key === key)?.value;
+    const panel = value('panel');
+    const trust = value('trust');
+    const read: IMarksSettings = {};
     if (panel === 'expanded' || panel === 'minimap' || panel === 'hidden') {
-      settings = { panel };
+      read.panel = panel;
+    }
+    if (trust && TRUST.test(trust)) {
+      read.trust = trust;
+    }
+    if (read.panel || read.trust) {
+      settings = read;
     }
   }
 
@@ -646,7 +664,11 @@ export function parseSettings(source: string | IComment[]): IParsedSettings {
  * disappears from the document instead of accumulating.
  */
 export function serialiseSettings(state: IMarksSettings): string {
-  return `<!-- marks:settings panel=${state.panel} -->`;
+  const keys = [
+    state.panel && `panel=${state.panel}`,
+    state.trust && `trust=${state.trust}`
+  ].filter(Boolean);
+  return `<!-- marks:settings ${keys.join(' ')} -->`;
 }
 
 /**

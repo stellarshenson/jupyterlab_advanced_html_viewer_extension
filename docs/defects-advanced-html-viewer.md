@@ -40,6 +40,48 @@ The sandboxed frame, trust, refresh and rendering the page again
   - test-tags: FUNCTIONAL
   - log: 2026-10-02T11:21:44Z @kj added
   - log: 2026-10-02T11:31:08Z @kj closed
+- [x] `DEF-VIEW-34` **Trust then Distrust before the signature returns leaves the signature in the file** - MEDIUM; found in review 2026-10-16; setTrust(true) awaits the signature; a Distrust during the wait finds no token and returns; the late signature is then written, so the distrusted file opens trusted next time
+  - evidence: jest notes.spec 'DEF-VIEW-34 drops a signature that arrives after the reader distrusted the page' red without the fix (logs/test-def-view-34-before.log), green on 1.0.41; jest 138
+  - repro: click Trust HTML, then Distrust HTML before the trust request answers
+  - test-tags: UNIT
+  - root-cause: 2026-10-16T10:50:05Z @kj setTrust compares the late signature with the controller's token and not with the reader's last choice
+  - log: 2026-10-16T10:50:05Z @kj added
+  - log: 2026-10-16T11:06:26Z @kj closed
+- [x] `DEF-VIEW-35` **Trust HTML on a read-only file raises a File Save Error** - MEDIUM; found in review 2026-10-16; on a read-only file the write route answers 403, the controller saves through the document, JupyterLab shows File Save Error, the tab is marked unsaved and Rerender does nothing until the tab closes; 1.0.37 only ran the scripts
+  - evidence: jest notes.spec 'DEF-VIEW-35 writes nothing into a file the lab cannot write': no signature request, no write, no save; red without the fix, green on 1.0.41
+  - repro: chmod 0444 an html file, open it, click Trust HTML
+  - test-tags: UNIT
+  - root-cause: 2026-10-16T10:50:05Z @kj setTrust writes the settings marker whatever the file's writable flag says
+  - log: 2026-10-16T10:50:05Z @kj added
+  - log: 2026-10-16T11:06:26Z @kj closed
+- [x] `DEF-VIEW-36` **The open check reads comments another way than the controller** - MAJOR; found in review 2026-10-16; a page whose script holds '<!--', as a syntax highlighter does, never reopens trusted; a marker inside an unclosed script at the end of a file survives Distrust
+  - evidence: Galata 'DEF-VIEW-36 a page whose script holds a comment opening reopens trusted' red on 1.0.40 (reopened without scripts), green on 1.0.41; Galata 83 of 83
+  - repro: trust a page that inlines a script containing '<!--' before the settings line, close it, open it again
+  - test-tags: UNIT, FUNCTIONAL
+  - root-cause: 2026-10-16T10:50:05Z @kj _open reads the settings with the plain comments() scan; the controller and every settings write use the parser's comments
+  - log: 2026-10-16T10:50:05Z @kj added
+  - log: 2026-10-16T11:06:26Z @kj closed
+- [x] `DEF-VIEW-37` **A change from disk during the open check can load the page without its scripts first** - MINOR; found in review 2026-10-16, not observed; the activity monitor starts before the trust check returns, so a change that settles meanwhile renders the page untrusted first; a Trust click during the check renders the page twice
+  - evidence: Galata 'DEF-VIEW-37' with the trust request held 6 s and the file changed during it: red on 1.0.40 (one load without allow-scripts), green on 1.0.41, every load with allow-scripts
+  - repro: slow the trust request past 1 s and change the file during the open
+  - test-tags: UNIT
+  - root-cause: 2026-10-16T10:50:11Z @kj the context-ready handler starts the monitor next to the open check instead of after it
+  - log: 2026-10-16T10:50:11Z @kj added
+  - log: 2026-10-16T11:06:26Z @kj closed
+- [x] `DEF-VIEW-40` **With trustByDefault on, an HTML file opens as a blank page** - MAJOR; found in review round 2 of 2026-10-16, a regression of the DEF-VIEW-37 change; trustByDefault sets trusted at widget creation, the setter renders the still-empty document, and _open then skips its render because a render already happened
+  - evidence: Galata 'DEF-VIEW-40' with trustByDefault on: red on 1.0.41 (blank page), green on 1.0.42 and 1.0.43; _open renders where the frame does not show the document's text; Galata 85 of 85
+  - repro: set the built-in viewer's trustByDefault, open any html file: the page is blank
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-16T11:20:39Z @kj _open renders only while _renderedSource is null; the setter's render of the empty document before ready set it to an empty string
+  - log: 2026-10-16T11:20:39Z @kj added
+  - log: 2026-10-16T11:39:13Z @kj closed
+- [x] `DEF-VIEW-41` **Rerender HTML Document stays pressed after a click** - MINOR; reported by the Star Colonel; after a click the refresh button keeps a pressed frame (aria-pressed=true) until the next click flips it back; the built-in viewer's button does the same
+  - evidence: Galata 'ACC-VIEW-87' red on 1.0.42 (aria-pressed true after the first click), green on 1.0.43; screenshot after a click shows no frame; Galata 85 of 85
+  - repro: open an html file, click Rerender HTML Document, move the mouse away: the button stays framed
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-16T11:30:26Z @kj JupyterLab 4.6 ToolbarButton.onClick sets pressed = !pressed on every click; createRefreshButton uses that widget
+  - log: 2026-10-16T11:30:26Z @kj added
+  - log: 2026-10-16T11:39:13Z @kj closed
 
 ## Where text comes from `ORIGIN`
 
@@ -183,6 +225,13 @@ Loading a change another process writes to the file into the open viewer
   - log: 2026-10-13T14:00:41Z @kj added; reason: names the effect on the marker, who found it and that it was never released
   - log: 2026-10-13T14:33:26Z @kj closed; reason: names the fix, the failing-first check, the review rounds and the run totals
   - log: 2026-10-13T15:13:49Z @kj edited evidence "the interval callback of Follower takes no look while one is under way (the condition gained !this._busy), so looked is raised once per look; jest follow.spec 'DEF-LIVE-31 signals one look for a look that lasts longer than two intervals' fails without the condition; review rounds 2 and 3 confirmed the change; jest 129, Galata 79 of 79 on the local build of 2026-10-13 16:20" -> "the interval callback of Follower takes no look while one is under way (the condition gained !this._busy), so looked is raised once per look; jest follow.spec 'DEF-LIVE-31 signals one look for a look that lasts longer than two intervals' fails without the condition; review rounds 2 to 5 confirmed the change; jest 129, Galata 79 of 79 on the local build of 2026-10-13 17:00"; reason: the runs are those of the final build
+- [x] `DEF-LIVE-39` **The unread dot disappears in forced-colours mode** - MINOR; found in review 2026-10-16; forced colours replace the dot's background with the tab's own, so the dot is invisible and leaves a gap; the star of 1.0.37 was text and stayed visible
+  - evidence: style/base.css forced-color-adjust: none on the dot; jest cue.spec stylesheet case; render on 1.0.41 with emulateMedia forcedColors active: the dot shows in green before the name in light and dark
+  - repro: Playwright emulateMedia forcedColors active, a tab with unread changes
+  - test-tags: UNIT
+  - root-cause: 2026-10-16T10:50:11Z @kj the dot is drawn with background-color, which forced colours override
+  - log: 2026-10-16T10:50:11Z @kj added
+  - log: 2026-10-16T11:06:26Z @kj closed
 
 ## Notes panel `PANEL`
 
@@ -302,6 +351,13 @@ Writing marks and notes into the file
   - root-cause: 2026-10-02T07:23:14Z @kj settingsEdits replaces the whole trailing whitespace and writes it again, where an insertion before it is enough
   - log: 2026-10-02T07:23:14Z @kj added
   - log: 2026-10-02T07:33:00Z @kj closed
+- [x] `DEF-STORE-38` **Trust HTML stores the panel state of that moment** - MEDIUM; found in review 2026-10-16; on a file with no stored panel state, Trust writes panel=hidden with the signature, so comments an agent adds later no longer open the Notes panel on reopen; 1.0.37 wrote no marker on Trust
+  - evidence: jest marks, store and notes 'DEF-STORE-38' cases red without the fix, green on 1.0.41: Trust writes trust alone where no panel state was chosen, Distrust restores the file; Galata ACC-VIEW-85 restores SCRIPTED exactly
+  - repro: trust a file without comments, add a comment on disk, close and reopen: the panel stays hidden
+  - test-tags: UNIT
+  - root-cause: 2026-10-16T10:50:11Z @kj every settings write carries the panel state, and a settings marker without a panel state cannot be read
+  - log: 2026-10-16T10:50:11Z @kj added
+  - log: 2026-10-16T11:06:26Z @kj closed
 
 ## Build and checks `BUILD`
 

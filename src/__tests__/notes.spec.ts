@@ -1,12 +1,18 @@
 import { Signal } from '@lumino/signaling';
 
 import { carrySpan, NotesController } from '../notes';
-import { fetchAPI } from '../request';
+import { fetchAPI, trustSignature } from '../request';
 import { applyEdits } from '../store';
 
-jest.mock('../request', () => ({ fetchAPI: jest.fn() }));
+jest.mock('../request', () => ({
+  fetchAPI: jest.fn(),
+  trustSignature: jest.fn()
+}));
 
 const fetchMock = fetchAPI as jest.MockedFunction<typeof fetchAPI>;
+const signatureMock = trustSignature as jest.MockedFunction<
+  typeof trustSignature
+>;
 
 const PAGE = '<!DOCTYPE html>\n<p>Hello world</p>\n';
 
@@ -44,6 +50,7 @@ function fakeViewer(text: string, dirty = false): any {
     state,
     context,
     pageLoaded: new Signal<any, any>(owner),
+    trustChosen: new Signal<any, boolean>(owner),
     disposed: new Signal<any, void>(owner),
     page: null,
     trusted: false,
@@ -70,7 +77,10 @@ function answer(status: number, data: any): any {
 }
 
 describe('writing a marker to disk', () => {
-  beforeEach(() => fetchMock.mockReset());
+  beforeEach(() => {
+    fetchMock.mockReset();
+    signatureMock.mockReset();
+  });
 
   it('ACC-STORE-35 writes into a document with unsaved changes and saves nothing', async () => {
     const viewer = fakeViewer(PAGE, true);
@@ -122,6 +132,82 @@ describe('writing a marker to disk', () => {
     await controller.setPanelState('minimap');
     expect(viewer.context.save).toHaveBeenCalledTimes(1);
     expect(viewer.state.text).toContain('panel=minimap');
+  });
+
+  it('ACC-VIEW-85 writes the signature the route gives when the reader trusts, and takes it out when they distrust', async () => {
+    const trust = 'b'.repeat(64);
+    const viewer = fakeViewer(PAGE);
+    fetchMock.mockResolvedValue(answer(404, '<html>not found</html>'));
+    signatureMock.mockResolvedValue(trust);
+    const controller = await controllerOf(viewer);
+    viewer.trusted = true;
+    await controller.setTrust(true);
+    expect(signatureMock).toHaveBeenCalledWith({}, 'page.html');
+    expect(viewer.state.text).toContain(`trust=${trust} -->`);
+    viewer.trusted = false;
+    await controller.setTrust(false);
+    expect(viewer.state.text).toBe(PAGE);
+  });
+
+  it('DEF-STORE-38 writes the panel state with the signature only where the reader chose one', async () => {
+    const trust = 'f'.repeat(64);
+    const viewer = fakeViewer(PAGE);
+    fetchMock.mockResolvedValue(answer(404, '<html>not found</html>'));
+    signatureMock.mockResolvedValue(trust);
+    const controller = await controllerOf(viewer);
+    viewer.trusted = true;
+    await controller.setTrust(true);
+    expect(viewer.state.text).toContain(
+      `<!-- marks:settings trust=${trust} -->`
+    );
+    await controller.setPanelState('minimap');
+    expect(viewer.state.text).toContain(
+      `<!-- marks:settings panel=minimap trust=${trust} -->`
+    );
+    viewer.trusted = false;
+    await controller.setTrust(false);
+    expect(viewer.state.text).toContain(
+      '<!-- marks:settings panel=minimap -->'
+    );
+  });
+
+  it('DEF-VIEW-34 drops a signature that arrives after the reader distrusted the page', async () => {
+    const viewer = fakeViewer(PAGE);
+    fetchMock.mockResolvedValue(answer(404, '<html>not found</html>'));
+    let answerSignature: (value: string | null) => void = () => undefined;
+    signatureMock.mockReturnValue(
+      new Promise(resolve => (answerSignature = resolve))
+    );
+    const controller = await controllerOf(viewer);
+    viewer.trusted = true;
+    const trusting = controller.setTrust(true);
+    viewer.trusted = false;
+    await controller.setTrust(false);
+    answerSignature('c'.repeat(64));
+    await trusting;
+    expect(viewer.state.text).not.toContain('trust=');
+  });
+
+  it('DEF-VIEW-35 writes nothing into a file the lab cannot write', async () => {
+    const viewer = fakeViewer(PAGE);
+    viewer.context.contentsModel.writable = false;
+    signatureMock.mockResolvedValue('d'.repeat(64));
+    const controller = await controllerOf(viewer);
+    viewer.trusted = true;
+    await controller.setTrust(true);
+    expect(viewer.state.text).toBe(PAGE);
+    expect(signatureMock).not.toHaveBeenCalled();
+    expect(viewer.context.save).not.toHaveBeenCalled();
+  });
+
+  it('ACC-VIEW-85 writes nothing where the route gives no signature', async () => {
+    const viewer = fakeViewer(PAGE);
+    signatureMock.mockResolvedValue(null);
+    const controller = await controllerOf(viewer);
+    viewer.trusted = true;
+    await controller.setTrust(true);
+    expect(viewer.state.text).toBe(PAGE);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('ACC-PANEL-51 signs a note with the handle and a UTC stamp', async () => {

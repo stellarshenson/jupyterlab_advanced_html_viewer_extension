@@ -147,6 +147,213 @@ test('ACC-VIEW-4 Distrust HTML stops the scripts', async ({
   await waitForText(page, 'Text written in the file.');
 });
 
+/** The sandbox of the frame in the visible viewer, its tokens sorted. */
+const sandboxShown = async (page: any): Promise<string[]> =>
+  ((await page.locator(`${SHOWN} iframe`).getAttribute('sandbox')) ?? '')
+    .split(' ')
+    .sort();
+
+/** The trust signature a file's settings marker carries, or null. */
+const trustIn = (apiPath: string): string | null =>
+  /<!-- marks:settings [^>]*trust=([0-9a-f]{64}) -->/.exec(
+    fileText(apiPath)
+  )?.[1] ?? null;
+
+test('ACC-VIEW-85 Trust HTML stores the trust in the file, which then opens trusted', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'kept');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  await trust(page);
+  await waitForText(page, 'Written by a script.');
+  await expect.poll(() => trustIn(file)).not.toBeNull();
+
+  // Opened again, the page loads with its scripts from the first load on.
+  await page.evaluate(async () => {
+    await (window as any).jupyterapp.commands.execute('application:close-all');
+    const loads: string[] = [];
+    (window as any).loads = loads;
+    new MutationObserver(records => {
+      for (const record of records) {
+        const frame = record.target as HTMLIFrameElement;
+        if (frame.getAttribute('src')?.startsWith('blob:')) {
+          loads.push(frame.getAttribute('sandbox') ?? '');
+        }
+      }
+    }).observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['src']
+    });
+  });
+  await openViewer(page, file, 'Written by a script.');
+  const loads: string[] = await page.evaluate(() => (window as any).loads);
+  expect(loads.length).toBeGreaterThan(0);
+  expect(loads.every(sandbox => sandbox.includes('allow-scripts'))).toBe(true);
+  await expect(
+    page.locator(`${SHOWN} .jp-Toolbar`).getByText('Distrust HTML', {
+      exact: true
+    })
+  ).toBeVisible();
+
+  // Distrust takes the signature out of the file, which held no panel state.
+  await page
+    .locator(`${SHOWN} .jp-Toolbar`)
+    .getByText('Distrust HTML', { exact: true })
+    .click();
+  await expect.poll(() => fileText(file)).toBe(SCRIPTED);
+});
+
+test('ACC-VIEW-86 a trust marker made elsewhere trusts nothing', async ({
+  page,
+  tmpPath
+}) => {
+  // A value of the right shape, written by hand.
+  const forged = fixture(tmpPath, 'forged');
+  writeFile(
+    forged,
+    `${SCRIPTED}<!-- marks:settings panel=expanded trust=${'a'.repeat(64)} -->\n`
+  );
+  await openViewer(page, forged, 'Text written in the file.');
+  expect(await sandboxShown(page)).toEqual([
+    'allow-downloads',
+    'allow-same-origin'
+  ]);
+  expect(await frameText(page)).not.toContain('Written by a script.');
+
+  // A file trusted here, copied to another path.
+  const original = fixture(tmpPath, 'original');
+  writeFile(original, SCRIPTED);
+  await openViewer(page, original, 'Text written in the file.');
+  await trust(page);
+  await expect.poll(() => trustIn(original)).not.toBeNull();
+  const copy = fixture(tmpPath, 'copy');
+  writeFile(copy, fileText(original));
+  await openViewer(page, copy, 'Text written in the file.');
+  expect(await sandboxShown(page)).toEqual([
+    'allow-downloads',
+    'allow-same-origin'
+  ]);
+  expect(await frameText(page)).not.toContain('Written by a script.');
+});
+
+test('DEF-VIEW-36 a page whose script holds a comment opening reopens trusted', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'highlighter');
+  writeFile(
+    file,
+    SCRIPTED.replace(
+      '<script>',
+      "<script>const opening = '<!--';</script>\n<script>"
+    )
+  );
+  await openViewer(page, file, 'Text written in the file.');
+  await trust(page);
+  await waitForText(page, 'Written by a script.');
+  await page.evaluate(async () => {
+    await (window as any).jupyterapp.commands.execute('application:close-all');
+  });
+  await openViewer(page, file, 'Written by a script.');
+  expect(await sandboxShown(page)).toContain('allow-scripts');
+});
+
+test('DEF-VIEW-37 a change during a slow trust check does not load the page without its scripts', async ({
+  page,
+  tmpPath
+}) => {
+  test.setTimeout(60000);
+  const file = fixture(tmpPath, 'slow');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  await trust(page);
+  await page.evaluate(async () => {
+    await (window as any).jupyterapp.commands.execute('application:close-all');
+    const loads: string[] = [];
+    (window as any).loads = loads;
+    new MutationObserver(records => {
+      for (const record of records) {
+        const frame = record.target as HTMLIFrameElement;
+        if (frame.getAttribute('src')?.startsWith('blob:')) {
+          loads.push(frame.getAttribute('sandbox') ?? '');
+        }
+      }
+    }).observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['src']
+    });
+  });
+  await page.route(
+    '**/jupyterlab-advanced-html-viewer-extension/trust**',
+    async (route: any) => {
+      await new Promise(resolve => setTimeout(resolve, 6000));
+      await route.continue();
+    }
+  );
+  await page.evaluate(async (target: string) => {
+    void (window as any).jupyterapp.commands.execute('docmanager:open', {
+      path: target,
+      factory: 'Advanced HTML Viewer'
+    });
+  }, file);
+  await page.waitForTimeout(1000);
+  writeFile(
+    file,
+    fileText(file).replace('Text written in the file.', 'Text changed on disk.')
+  );
+  await expect
+    .poll(() => frameText(page), { timeout: 20000 })
+    .toContain('Text changed on disk.');
+  await waitForText(page, 'Written by a script.');
+  const loads: string[] = await page.evaluate(() => (window as any).loads);
+  expect(loads.length).toBeGreaterThan(0);
+  expect(loads.every(sandbox => sandbox.includes('allow-scripts'))).toBe(true);
+});
+
+test.describe('with the built-in viewer trusting by default', () => {
+  test.use({
+    mockSettings: {
+      ...settings(),
+      '@jupyterlab/htmlviewer-extension:plugin': { trustByDefault: true }
+    }
+  });
+
+  test('DEF-VIEW-40 opens a file with its page shown and its scripts run', async ({
+    page,
+    tmpPath
+  }) => {
+    const file = fixture(tmpPath, 'by-default');
+    writeFile(file, SCRIPTED);
+    await openViewer(page, file, 'Written by a script.');
+    await waitForText(page, 'Text written in the file.');
+  });
+});
+
+test('ACC-VIEW-87 Rerender HTML Document never stays pressed', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'rerender');
+  writeFile(file, '<!DOCTYPE html>\n<p>The page.</p>\n');
+  await openViewer(page, file, 'The page.');
+  const button = page.locator(
+    `${SHOWN} .jp-Toolbar [title="Rerender HTML Document"]`
+  );
+  for (const click of ['first', 'second']) {
+    await button.click();
+    await page.mouse.move(600, 500);
+    await expect(button, `after the ${click} click`).not.toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  }
+  await waitForText(page, 'The page.');
+});
+
 test('ACC-VIEW-5 Refresh renders the file again', async ({ page, tmpPath }) => {
   const file = fixture(tmpPath, 'refresh');
   writeFile(
@@ -594,20 +801,6 @@ function watchMarker(page: any, apiPath: string): Promise<void> {
   );
 }
 
-/**
- * The colour one of the theme's text colour levels gives text, as the
- * browser computes it: level 0 is the strongest, level 1 the usual one.
- */
-const themeColour = (page: any, level: number): Promise<string> =>
-  page.evaluate((variable: string) => {
-    const probe = document.createElement('span');
-    probe.style.color = `var(${variable})`;
-    document.body.appendChild(probe);
-    const colour = getComputedStyle(probe).color;
-    probe.remove();
-    return colour;
-  }, `--jp-ui-font-color${level}`);
-
 /** The sets of classes recorded since {@link watchMarker}. */
 const markerSeen = (page: any): Promise<string[]> =>
   page.evaluate(() => (window as any).__marker);
@@ -708,9 +901,8 @@ test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, u
   await expect(tab).toHaveClass(/jp-AdvancedHtml-tabArriving/, {
     timeout: 6000
   });
-  // Two looks without a change, and nobody has looked: the star, standing
-  // still, one level brighter than the label. The label of a tab that is
-  // not selected has the theme's text colour 1, the star colour 0.
+  // Two looks without a change, and nobody has looked: a filled round dot,
+  // standing still, in the green of a light theme.
   await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/, {
     timeout: 10000
   });
@@ -721,17 +913,20 @@ test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, u
       return {
         content: style.content,
         animation: style.animationName,
-        colour: style.color,
-        labelColour: getComputedStyle(label).color
+        width: style.width,
+        height: style.height,
+        radius: style.borderRadius,
+        colour: style.backgroundColor
       };
     });
   expect(unread).toEqual({
-    content: '"✻"',
+    content: '""',
     animation: 'none',
-    colour: await themeColour(page, 0),
-    labelColour: await themeColour(page, 1)
+    width: '7px',
+    height: '7px',
+    radius: '50%',
+    colour: 'rgb(17, 99, 41)'
   });
-  expect(unread.colour).not.toBe(unread.labelColour);
   // Past the eight seconds a tab in front keeps its marker: behind, it waits.
   await page.waitForTimeout(9000);
   await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/);

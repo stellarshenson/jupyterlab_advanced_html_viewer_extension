@@ -25,7 +25,7 @@ description: Mark passages of an HTML file in one of six colours, comment on a p
 - **Comments** - one per line after the attributes, with `-->` on its own line after the last, as the viewer writes them. To add one, put your line directly before that `-->`. On a marker with no comment yet, end the attribute line after the attributes and write your line, then `-->` on its own line
 - **Comments on the marker's one line** - a marker can hold its comments on its first line, joined by a literal `\n`, as the Markdown viewer writes them in a table row. Add yours there as `\n@claude <stamp>: <text>` before ` -->`, with a `\` in your text written `\\`. A line break in such a marker makes the viewer drop the mark
 - **Text** - write `-->` as `-- >` and `--!>` as `--! >`; no blank lines; a line that continues a comment and starts with `@` takes one leading space
-- **Settings** - leave `<!-- marks:settings panel=... -->` as it is; the Notes panel writes it
+- **Settings** - leave `<!-- marks:settings panel=... trust=... -->` as it is, also when you rewrite the file; the Notes panel and Trust HTML write it, and a `trust=` value you write or change trusts nothing
 
 ## A comment on the whole page
 

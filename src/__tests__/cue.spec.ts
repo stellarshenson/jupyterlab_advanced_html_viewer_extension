@@ -296,11 +296,24 @@ describe('the tab marker (ACC-LIVE-70)', () => {
       expect(markerRule(TAB_CHANGING_CLASS)).not.toContain('animation');
     });
 
-    it('draws the unread marker as one character that stands still, one text colour level above the label', () => {
+    it('draws the unread marker as a 7 px round dot in the green of the theme kind, centred on the capitals, standing still', () => {
       const unread = markerRule(TAB_UNREAD_CLASS);
-      expect(unread).toMatch(/content: '\\273B';/);
-      expect(unread).toMatch(/color: var\(--jp-ui-font-color0\);/);
+      expect(unread).toMatch(/content: '';/);
+      expect(unread).toMatch(/width: 7px;/);
+      expect(unread).toMatch(/height: 7px;/);
+      expect(unread).toMatch(/vertical-align: calc\(\(1cap - 7px\) \/ 2\);/);
+      expect(unread).toMatch(
+        /background-color: var\(--jp-AdvancedHtml-unread\);/
+      );
+      expect(unread).toMatch(/border-radius: 50%;/);
+      expect(unread).toMatch(/forced-color-adjust: none;/);
       expect(unread).not.toContain('animation');
+      expect(stylesheet).toMatch(
+        /:root \{\n {2}--jp-AdvancedHtml-unread: #116329;\n\}/
+      );
+      expect(stylesheet).toMatch(
+        /body\[data-jp-theme-light='false'\] \{\n {2}--jp-AdvancedHtml-unread: #66bb6a;\n\}/
+      );
     });
   });
 

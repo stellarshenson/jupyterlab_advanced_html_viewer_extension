@@ -1,5 +1,8 @@
-"""The compare-and-write route, against a running Jupyter server."""
+"""The compare-and-write route and the trust route, against a running Jupyter server."""
+import hashlib
+import hmac
 import json
+import re
 
 import pytest
 from tornado.httpclient import HTTPClientError
@@ -221,3 +224,29 @@ async def test_write_needs_auth(http_server_client, jp_base_url, jp_root_dir):
 
     assert response.code == 403
     assert (jp_root_dir / "page.html").read_text() == PAGE
+
+
+async def trust(jp_fetch, path):
+    response = await jp_fetch(NAMESPACE, "trust", params={"path": path})
+    return json.loads(response.body)["signature"]
+
+
+async def test_trust_signs_a_path(jp_fetch, jp_serverapp):
+    """ACC-ROUTE-84: the HMAC of the path with the notebook signing secret, one value per path."""
+    signature = await trust(jp_fetch, "decks/page.html")
+    secret = jp_serverapp.contents_manager.notary.secret
+    message = f"{NAMESPACE} trust\n".encode() + b"decks/page.html"
+
+    assert re.fullmatch("[0-9a-f]{64}", signature)
+    assert signature == hmac.new(secret, message, hashlib.sha256).hexdigest()
+    assert await trust(jp_fetch, "decks/page.html") == signature
+    assert await trust(jp_fetch, "/decks/page.html") == signature
+    assert await trust(jp_fetch, "decks/copy.html") != signature
+
+
+async def test_trust_needs_a_path(jp_fetch):
+    """ACC-ROUTE-84: a request without a path answers 400."""
+    with pytest.raises(HTTPClientError) as error:
+        await jp_fetch(NAMESPACE, "trust")
+
+    assert error.value.code == 400

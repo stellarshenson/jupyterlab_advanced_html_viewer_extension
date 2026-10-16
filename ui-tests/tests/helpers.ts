@@ -73,9 +73,14 @@ export function fixture(tmpPath: string, name: string): string {
   return `${tmpPath}/${name}.html`;
 }
 
-/** The file with every marker taken out, as an agent reading it plainly would. */
+/**
+ * The file with every marker taken out, as an agent reading it plainly would.
+ * The settings marker goes with the line break the viewer writes before it.
+ */
 export function unmarked(text: string): string {
-  return text.replace(/<!--\s*(?:\/?mark:|marks:settings)[\s\S]*?-->/g, '');
+  return text
+    .replace(/\n?<!--\s*marks:settings[\s\S]*?-->/g, '')
+    .replace(/<!--\s*\/?mark:[\s\S]*?-->/g, '');
 }
 
 /** Open a file in a viewer and wait for the page to show a text. */
@@ -301,7 +306,10 @@ export async function mark(
     .toBe(true);
 }
 
-/** Trust the file in the visible viewer and wait for its page to come back. */
+/**
+ * Trust the file in the visible viewer and wait for its page to come back and
+ * for the trust signature to be written into the file.
+ */
 export async function trust(page: any): Promise<void> {
   await page
     .locator(`${SHOWN} .jp-Toolbar`)
@@ -312,6 +320,15 @@ export async function trust(page: any): Promise<void> {
       exact: true
     })
   ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).jupyterapp.shell.currentWidget?.context?.model
+          ?.toString()
+          .includes(' trust=')
+      )
+    )
+    .toBe(true);
 }
 
 /** The rows of the notes panel. */

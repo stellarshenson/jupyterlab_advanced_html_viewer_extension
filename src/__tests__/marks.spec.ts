@@ -95,4 +95,24 @@ describe('the marker grammar', () => {
       parseSettings(serialiseSettings({ panel: 'minimap' })).settings
     ).toEqual({ panel: 'minimap' });
   });
+
+  it('DEF-STORE-38 reads and writes a settings marker that holds trust alone', () => {
+    const trust = 'e'.repeat(64);
+    const marker = serialiseSettings({ trust });
+    expect(marker).toBe(`<!-- marks:settings trust=${trust} -->`);
+    expect(parseSettings(marker).settings).toEqual({ trust });
+  });
+
+  it('ACC-VIEW-85 reads a trust signature back, and no value of another shape', () => {
+    const trust = '0123456789abcdef'.repeat(4);
+    expect(
+      parseSettings(serialiseSettings({ panel: 'hidden', trust })).settings
+    ).toEqual({ panel: 'hidden', trust });
+    for (const value of ['always', 'yes', trust.toUpperCase(), trust + '0']) {
+      expect(
+        parseSettings(`<!-- marks:settings panel=hidden trust=${value} -->`)
+          .settings
+      ).toEqual({ panel: 'hidden' });
+    }
+  });
 });

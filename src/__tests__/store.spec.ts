@@ -105,7 +105,9 @@ describe('writing into the file', () => {
     for (const panel of ['minimap', 'expanded', 'hidden'] as const) {
       source = applyEdits(
         source,
-        settingsEdits(source, settingsSpans(analyseComments(source)), panel)
+        settingsEdits(source, settingsSpans(analyseComments(source)), {
+          panel
+        })
       );
     }
     expect(source.match(/marks:settings/g)).toHaveLength(1);
@@ -125,7 +127,7 @@ describe('writing into the file', () => {
       const edits = settingsEdits(
         source,
         settingsSpans(analyseComments(source)),
-        'minimap'
+        { panel: 'minimap' }
       );
       expect(Math.max(...edits.map(edit => edit.end))).toBe(
         source.replace(/\s+$/, '').length
@@ -141,9 +143,41 @@ describe('writing into the file', () => {
     expect(parseSettings(source).settings).toBeNull();
     const written = applyEdits(
       source,
-      settingsEdits(source, settingsSpans(analyseComments(source)), 'minimap')
+      settingsEdits(source, settingsSpans(analyseComments(source)), {
+        panel: 'minimap'
+      })
     );
     expect(written).toBe(`${PAGE}<!-- marks:settings panel=minimap -->\n`);
+  });
+
+  it('DEF-STORE-38 takes the settings marker out where the settings hold nothing', () => {
+    const source = `${PAGE}<!-- marks:settings trust=${'e'.repeat(64)} -->\n`;
+    const written = applyEdits(
+      source,
+      settingsEdits(source, settingsSpans(analyseComments(source)), {})
+    );
+    expect(written).toBe(PAGE);
+  });
+
+  it('ACC-VIEW-85 writes the trust signature into the one settings marker and takes it out again', () => {
+    const trust = 'f'.repeat(64);
+    const trusted = applyEdits(
+      PAGE,
+      settingsEdits(PAGE, settingsSpans(analyseComments(PAGE)), {
+        panel: 'minimap',
+        trust
+      })
+    );
+    expect(trusted).toBe(
+      `${PAGE}<!-- marks:settings panel=minimap trust=${trust} -->\n`
+    );
+    const distrusted = applyEdits(
+      trusted,
+      settingsEdits(trusted, settingsSpans(analyseComments(trusted)), {
+        panel: 'minimap'
+      })
+    );
+    expect(distrusted).toBe(`${PAGE}<!-- marks:settings panel=minimap -->\n`);
   });
 });
 
