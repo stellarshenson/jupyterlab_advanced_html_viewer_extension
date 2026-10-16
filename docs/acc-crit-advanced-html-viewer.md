@@ -114,6 +114,22 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - mechanism: 2026-10-16T11:30:26Z @kj createRefreshButton builds the button from ToolbarButtonComponent through ReactWidget, as createTrustButton does; JupyterLab's ToolbarButton widget flips its pressed state on every click
   - log: 2026-10-16T11:30:26Z @kj added
   - log: 2026-10-16T11:39:13Z @kj closed
+- [x] `ACC-VIEW-88` **Full screen button shows the page alone** - MEDIUM; a toolbar button shows the page alone on the whole screen; the page is not loaded again, so its scripts' state, scroll position, marks and trust stay; the keyboard goes to the page, so Page Down and the arrow keys move it; the browser's Escape returns to the lab; the button never stays pressed
+  - evidence: Galata 'ACC-VIEW-88' red on 1.0.45 (no button), green on 1.0.47: frame full screen, same document, Page Down scrolls, not pressed, Escape left to the page; render 1.0.47 light and dark: icon after Trust HTML, page alone on the screen; Galata 87 of 87, Jest 138
+  - test: Galata viewer.spec 'ACC-VIEW-88': after a click the frame is document.fullscreenElement, holds the same document, Page Down scrolls it, aria-pressed is not true; Escape reaches the page untaken; after leaving full screen the same document shows
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-16T13:48:30Z @kj createFullScreenButton builds a ToolbarButtonComponent through ReactWidget whose click calls requestFullscreen on the viewer's frame element and then focuses the frame
+  - log: 2026-10-16T13:48:30Z @kj added; reason: the five states the page keeps and the two keys need the length
+  - log: 2026-10-16T13:58:48Z @kj edited test "Galata viewer.spec 'ACC-VIEW-88': after a click the frame is document.fullscreenElement, holds the same document, Page Down scrolls it, aria-pressed is not true; Escape leaves full screen" -> "Galata viewer.spec 'ACC-VIEW-88': after a click the frame is document.fullscreenElement, holds the same document, Page Down scrolls it, aria-pressed is not true; Escape reaches the page untaken; after leaving full screen the same document shows"
+  - log: 2026-10-16T13:58:48Z @kj Playwright keys never reach the browser's own Escape (headless shell, full Chromium headless, headed under Xvfb all tried), so the test checks the viewer leaves Escape to the browser and leaves full screen through document.exitFullscreen
+  - log: 2026-10-16T14:05:12Z @kj closed
+- [x] `ACC-VIEW-89` **Right-click in full screen opens the browser's menu** - MEDIUM; while the page is on the whole screen, right-click opens the browser's own menu and not the lab's, which cannot show over a full-screen page
+  - evidence: Galata 'ACC-VIEW-89' red on 1.0.46 without the guard (viewer took the event), green on 1.0.47: no lab menu, event left to the browser; lab menu back after full screen; Galata 87 of 87
+  - test: Galata viewer.spec 'ACC-VIEW-89': right-click in the full-screen page opens no lab menu and leaves the event to the browser
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-16T13:48:30Z @kj the page's contextmenu listener in src/notes.ts leaves the event alone while the frame is document.fullscreenElement
+  - log: 2026-10-16T13:48:30Z @kj added
+  - log: 2026-10-16T14:05:12Z @kj closed
 
 ## Following the file `LIVE`
 

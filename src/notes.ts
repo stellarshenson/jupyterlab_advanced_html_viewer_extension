@@ -609,8 +609,14 @@ export class NotesController implements IDisposable {
     const { window: win, document: doc } = page;
     const onContextMenu = (event: MouseEvent): void => {
       // Shift keeps the browser's own menu, as it does elsewhere in the lab,
-      // and a page that answered the event itself keeps its own.
-      if (event.shiftKey || event.defaultPrevented) {
+      // and a page that answered the event itself keeps its own. A page on
+      // the whole screen keeps the browser's too: the lab's menu cannot show
+      // over it (ACC-VIEW-89).
+      if (
+        event.shiftKey ||
+        event.defaultPrevented ||
+        document.fullscreenElement === this._viewer.frame
+      ) {
         return;
       }
       event.preventDefault();

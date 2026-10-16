@@ -42,6 +42,7 @@ import * as React from 'react';
 
 import { TabCue } from './cue';
 import { Follower } from './follow';
+import { FULL_SCREEN_ICON } from './icons';
 import { parseSettings } from './marks';
 import { trustSignature } from './request';
 import { analyse, IAnalysis, IPageOptions } from './source';
@@ -536,6 +537,33 @@ export function createRefreshButton(
 }
 
 /**
+ * The toolbar button that shows the page alone on the whole screen
+ * (ACC-VIEW-88). The frame goes full screen as it is, so the page is not
+ * loaded again, and then takes the keyboard, so the keys move the page; the
+ * browser's Escape ends it. Built as the Rerender button, so it keeps no
+ * pressed state.
+ */
+export function createFullScreenButton(
+  viewer: AdvancedHTMLViewer,
+  translator?: ITranslator
+): Widget {
+  const trans = (translator ?? nullTranslator).load('jupyterlab');
+  return ReactWidget.create(
+    React.createElement(ToolbarButtonComponent, {
+      icon: FULL_SCREEN_ICON,
+      onClick: () => {
+        const frame = viewer.frame;
+        void frame.requestFullscreen().then(
+          () => frame.focus(),
+          reason => console.error('The page could not go full screen.', reason)
+        );
+      },
+      tooltip: trans.__('Show the page on the whole screen; Escape returns')
+    })
+  );
+}
+
+/**
  * The toolbar button that trusts and distrusts the file, as the built-in
  * viewer's.
  */
@@ -573,7 +601,7 @@ export interface IAdvancedHTMLViewerFactoryOptions extends DocumentRegistry.IWid
 }
 
 /**
- * The factory of the viewer, which puts the two buttons on its toolbar.
+ * The factory of the viewer, which puts the three buttons on its toolbar.
  */
 export class AdvancedHTMLViewerFactory extends ABCWidgetFactory<
   AdvancedHTMLViewer,
@@ -599,7 +627,11 @@ export class AdvancedHTMLViewerFactory extends ABCWidgetFactory<
   ): DocumentRegistry.IToolbarItem[] {
     return [
       { name: 'refresh', widget: createRefreshButton(widget, this.translator) },
-      { name: 'trust', widget: createTrustButton(widget, this.translator) }
+      { name: 'trust', widget: createTrustButton(widget, this.translator) },
+      {
+        name: 'fullScreen',
+        widget: createFullScreenButton(widget, this.translator)
+      }
     ];
   }
 

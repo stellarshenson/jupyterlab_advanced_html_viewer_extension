@@ -354,6 +354,107 @@ test('ACC-VIEW-87 Rerender HTML Document never stays pressed', async ({
   await waitForText(page, 'The page.');
 });
 
+/** The full-screen button of the viewer in front. */
+const fullScreenButton = (page: any) =>
+  page.locator(
+    `${SHOWN} .jp-Toolbar [title^="Show the page on the whole screen"]`
+  );
+
+/** Whether the frame of the viewer in front is on the whole screen. */
+const frameOnWholeScreen = (page: any): Promise<boolean> =>
+  page.evaluate(
+    (selector: string) =>
+      document.fullscreenElement !== null &&
+      document.fullscreenElement === document.querySelector(selector),
+    `${SHOWN} iframe`
+  );
+
+test('ACC-VIEW-88 Full screen shows the page alone and keeps it', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'full-screen');
+  const lines = Array.from(
+    { length: 200 },
+    (_, line) => `<p>Line ${line}.</p>`
+  ).join('\n');
+  writeFile(file, `<!DOCTYPE html>\n${lines}\n`);
+  await openViewer(page, file, 'Line 0.');
+  // A property set on the shown document tells whether it was loaded again.
+  await inFrame(page, 'doc.shownBefore = true;');
+
+  const button = fullScreenButton(page);
+  await button.click();
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(true);
+  expect(await inFrame<boolean>(page, 'return doc.shownBefore === true;')).toBe(
+    true
+  );
+  await expect(button).not.toHaveAttribute('aria-pressed', 'true');
+
+  // The keyboard is the page's: Page Down moves it.
+  await page.keyboard.press('PageDown');
+  await expect
+    .poll(() => inFrame<number>(page, 'return win.scrollY;'))
+    .toBeGreaterThan(0);
+
+  // Escape is the browser's: it ends full screen before the page sees the
+  // key. Playwright's keys never reach the browser's own shortcuts, so the
+  // test checks that the viewer leaves the key to the page, then leaves full
+  // screen as Escape does.
+  await inFrame(
+    page,
+    `win.escapeTaken = null;
+     doc.addEventListener('keydown', event => {
+       if (event.key === 'Escape') win.escapeTaken = event.defaultPrevented;
+     });`
+  );
+  await page.keyboard.press('Escape');
+  await expect
+    .poll(() => inFrame<boolean | null>(page, 'return win.escapeTaken;'))
+    .toBe(false);
+  await page.evaluate(() => document.exitFullscreen());
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(false);
+  expect(await inFrame<boolean>(page, 'return doc.shownBefore === true;')).toBe(
+    true
+  );
+});
+
+test("ACC-VIEW-89 right-click in full screen opens the browser's menu", async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'full-screen-menu');
+  writeFile(file, '<!DOCTYPE html>\n<p>The page on the whole screen.</p>\n');
+  await openViewer(page, file, 'The page on the whole screen.');
+  // A listener after the viewer's sees whether the viewer took the event.
+  await inFrame(
+    page,
+    `win.menuTaken = null;
+     doc.addEventListener('contextmenu', event => {
+       win.menuTaken = event.defaultPrevented;
+     });`
+  );
+
+  await fullScreenButton(page).click();
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(true);
+  const at = await pointAt(page, 'The page on the whole screen.');
+  await page.mouse.click(at.x, at.y, { button: 'right' });
+  await expect
+    .poll(() => inFrame<boolean | null>(page, 'return win.menuTaken;'))
+    .toBe(false);
+  await expect(page.locator('.lm-Menu')).toHaveCount(0);
+
+  // Back in the lab, right-click opens the lab's menu again.
+  await page.evaluate(() => document.exitFullscreen());
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(false);
+  const back = await pointAt(page, 'The page on the whole screen.');
+  await page.mouse.click(back.x, back.y, { button: 'right' });
+  await expect(page.locator('.lm-Menu').first()).toBeVisible();
+  expect(await inFrame<boolean | null>(page, 'return win.menuTaken;')).toBe(
+    true
+  );
+});
+
 test('ACC-VIEW-5 Refresh renders the file again', async ({ page, tmpPath }) => {
   const file = fixture(tmpPath, 'refresh');
   writeFile(

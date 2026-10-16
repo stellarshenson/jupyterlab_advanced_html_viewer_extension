@@ -1,6 +1,6 @@
 /**
- * Icons for the menu entries, the palette commands and the panel controls of
- * the extension.
+ * Icons for the menu entries, the palette commands, the panel controls and
+ * the toolbar of the extension.
  *
  * Each mark colour has a swatch in that colour, so a reader picking a colour
  * from the context menu sees it before choosing; the swatch is the one the
@@ -137,6 +137,19 @@ export const DELETE_NOTE_ICON: LabIcon = closeIcon;
 
 /** The icon of the panel control that adds a note on the document as a whole. */
 export const ADD_ICON: LabIcon = addIcon;
+
+/**
+ * The toolbar button that shows the page on the whole screen: four corners,
+ * the Material Design full-screen icon, painted in the toolbar's icon colour
+ * as JupyterLab's own toolbar icons are (class jp-icon3).
+ */
+export const FULL_SCREEN_ICON = new LabIcon({
+  name: 'jupyterlab_advanced_html_viewer_extension:full-screen',
+  svgstr:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" viewBox="0 0 24 24">' +
+    '<path class="jp-icon3" fill="#616161" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>' +
+    '</svg>'
+});
 
 /** Copying the rendered document, in JupyterLab's own copy icon. */
 export const COPY_ICON: LabIcon = copyIcon;

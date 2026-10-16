@@ -2,6 +2,18 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.48] - 2026-10-16
+
+### Added
+
+- A full-screen button on the toolbar shows the page alone on the whole screen, as it is, without loading it again, and puts the keyboard on the page; Escape returns to JupyterLab
+
+### Changed
+
+- Right-click on a page shown on the whole screen opens the browser's own menu, since JupyterLab's menu cannot show over it
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.45] - 2026-10-16
 
 ### Added
@@ -17,8 +29,6 @@
 ### Fixed
 
 - Rerender HTML Document no longer stays pressed after a click
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.37] - 2026-10-13
 
