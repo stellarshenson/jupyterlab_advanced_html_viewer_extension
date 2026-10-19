@@ -2,6 +2,19 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.56] - 2026-10-19
+
+### Added
+
+- The page's scrollbar follows the JupyterLab theme, both the frame's own and any inner scrolling area, also where the page sets its own scrollbar colours; a theme switch recolours it without reloading the page
+- A page wider than the frame is scaled down to the frame's width before trust as well as after; a page that fits keeps its own size, and a resize (notes panel, window, full screen) fits it again without a reload
+
+### Fixed
+
+- The Always trust checkbox is checked only while the page is trusted and the file's marker holds the signature; after a distrust the file cannot record, its click now trusts the page instead of doing nothing
+- A read-only file's distrust survives the next settle; the trust signature written by one view is no longer lost when another view adds the first comment; a box click during a slow trust check no longer drops the render of a new change
+- Fit measures the page's own zoom per document, so a page that zooms itself is fitted correctly after a reload
+
 ## [1.0.52] - 2026-10-19
 
 ### Added

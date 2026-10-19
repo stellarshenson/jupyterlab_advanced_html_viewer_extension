@@ -136,7 +136,8 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - mechanism: 2026-10-16T13:48:30Z @kj the page's contextmenu listener in src/notes.ts leaves the event alone while the frame is document.fullscreenElement
   - log: 2026-10-16T13:48:30Z @kj added
   - log: 2026-10-16T14:05:12Z @kj closed
-- [ ] `ACC-VIEW-90` **Extra trust checkbox remembered in the file** - HIGH; an extra toolbar checkbox beside the Trust HTML button is checked while the file's settings marker holds this lab's signature of its path; ticking it trusts the page and writes the signature, clearing it distrusts and removes it; the file opens trusted next time while the signature stays
+- [x] `ACC-VIEW-90` **Extra trust checkbox remembered in the file** - HIGH; an extra toolbar checkbox beside the Trust HTML button is checked while the page is trusted and the file's settings marker holds this lab's signature of its path; ticking it trusts the page and writes the signature, clearing it distrusts and removes it; the file opens trusted next time while the signature stays
+  - evidence: Galata 95 of 95 on 1.0.51 with five ACC-VIEW-90 cases: tick stores the signature and runs the script, reopen is trusted, clear removes it; Jest 144; released 1.0.52
   - related: ACC-VIEW-85, ACC-VIEW-86 - the signature write and signature check this control reuses
   - test: open a file with no marker, assert clear; tick, reopen, assert ticked and the script ran; clear, reopen, assert clear and no script
   - test-tags: FUNCTIONAL
@@ -144,6 +145,35 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - log: 2026-10-18T13:08:08Z @kj added
   - log: 2026-10-18T13:40:58Z @kj amended title "Trust checkbox remembered in the file" -> "Extra trust checkbox remembered in the file"; text "a toolbar checkbox or toggle for trusting this page is checked while the file's settings marker holds this lab's signature of its path, and shows that stored state at open; ticking trusts the page and writes the signature, clearing distrusts and removes it" -> "HIGH; an extra toolbar checkbox beside the Trust HTML button is checked while the file's settings marker holds this lab's signature of its path; ticking it trusts the page and writes the signature, clearing it distrusts and removes it; the file opens trusted next time while the signature stays"
   - log: 2026-10-18T13:41:02Z @kj mechanism updated "2026-10-18T13:08:08Z @kj the box reads the trust=<signature> field of the marks:settings marker through GET trust; the file never carries a plain boolean that trusts itself" -> "the extra box reads the trust=<signature> field of the marks:settings marker through GET trust and shares it with the Trust HTML button, which stays; the file never carries a plain boolean that trusts itself"
+  - log: 2026-10-19T12:41:36Z @kj closed: released in 1.0.52
+  - log: 2026-10-19T14:29:40Z @kj edited text "an extra toolbar checkbox beside the Trust HTML button is checked while the file's settings marker holds this lab's signature of its path; ticking it trusts the page and writes the signature, clearing it distrusts and removes it; the file opens trusted next time while the signature stays" -> "HIGH; an extra toolbar checkbox beside the Trust HTML button is checked while the page is trusted and the file's settings marker holds this lab's signature of its path; ticking it trusts the page and writes the signature, clearing it distrusts and removes it; the file opens trusted next time while the signature stays"; reason: the box reports trust and the signature together after the read-only distrust finding
+- [x] `ACC-VIEW-91` **Scrollbar follows the lab theme** - MEDIUM; every page shown in the viewer has scrollbars in the colours of the JupyterLab theme in use, both the frame's own and any inner scrolling area, also where the page sets its own scrollbar colours; a light theme gives light scrollbars and a dark theme gives dark ones
+  - evidence: Galata tests/theme.spec.ts:96 green with light and dark screenshot attachments; full suite 103 of 103
+  - test: open a page taller than the frame under stock light and stock dark, screenshot the scrollbar in both
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-19T14:00:52Z @kj the viewer writes a stylesheet into the same-origin frame whose scrollbar-color and webkit scrollbar rules take the lab theme's scrollbar variables and outrank the page's own rules; the page's color-scheme is left untouched
+  - mechanism: 2026-10-19T12:40:35Z @kj the viewer writes a stylesheet into the same-origin frame that takes scrollbar-color and color-scheme from the lab's theme variables and outranks the page's own rules
+  - log: 2026-10-19T12:40:35Z @kj added
+  - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
+- [x] `ACC-VIEW-92` **Edge: theme switched while the page is open** - MEDIUM; the scrollbar changes to the new JupyterLab theme's colours without the page being reloaded or its scroll position lost
+  - evidence: Galata tests/theme.spec.ts:168 green; theme switch recolours with no reload; mutation check failed when the live refresh was disabled; full suite 103 of 103
+  - test: open a page, switch the lab theme, assert the scrollbar colours change with no reload
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-19T12:40:35Z @kj added
+  - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
+- [x] `ACC-VIEW-93` **Page fits the frame width before trust** - MEDIUM; a page wider than the frame is shown scaled down to the frame's width with no horizontal scrollbar while the page is untrusted, as well as after trust; a page that fits the frame keeps its own size
+  - evidence: Galata tests/fit.spec.ts:151 and :172 green: a 2000 px page fits the 694 px frame untrusted and trusted; responsive and narrow pages keep their size; mutation check failed when the ratio was disabled; full suite 103 of 103
+  - test: open a page with a 2000 px fixed layout in a narrow frame, assert no horizontal scrollbar and the right edge inside the frame, untrusted and trusted
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-19T12:41:36Z @kj the viewer measures the page's own width against the frame's width and applies one ratio inside the same-origin frame, so the fit needs no scripts and no trust
+  - log: 2026-10-19T12:41:36Z @kj added
+  - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
+- [x] `ACC-VIEW-94` **Edge: frame resized after load** - MEDIUM; the page is scaled again to the new width when the notes panel opens or closes, the window resizes, or the page goes full screen, without a reload
+  - evidence: Galata tests/fit.spec.ts:209 green: rescale on panel toggle, window resize and full screen with no reload; full suite 103 of 103
+  - test: open a wide page, expand the notes panel, assert the page rescales with no reload
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-19T12:41:36Z @kj added
+  - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
 
 ## Following the file `LIVE`
 

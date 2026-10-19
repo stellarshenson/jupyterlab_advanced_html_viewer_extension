@@ -50,6 +50,7 @@ import {
 } from './marks';
 import { openingState } from './notes-panel';
 import { PageMap, SelectionResult } from './origin';
+import { pageThemeStyle } from './page-theme';
 import { CLOSED_HIGHLIGHT, flash, highlightName, paint } from './paint';
 import { fetchAPI, trustSignature } from './request';
 import { analyse, IAnalysis, passageText } from './source';
@@ -514,7 +515,7 @@ export class NotesController implements IDisposable {
       return;
     }
     this._trust = trust;
-    if (await this._writeSettings()) {
+    if (await this._writeSettings(this._trust)) {
       this._viewer.setRemembered(this._trust !== null, this._trust);
     }
   }
@@ -524,7 +525,7 @@ export class NotesController implements IDisposable {
    * state only where the reader chose one: a file that holds none opens its
    * panel by whether it has marks.
    */
-  private async _writeSettings(): Promise<boolean> {
+  private async _writeSettings(trust?: string | null): Promise<boolean> {
     this._settingsWrites++;
     try {
       return await this._write(source => {
@@ -532,8 +533,14 @@ export class NotesController implements IDisposable {
         if (this._panelChosen) {
           settings.panel = this._state;
         }
-        if (this._trust) {
-          settings.trust = this._trust;
+        // A panel write keeps the signature the text holds: another view may
+        // have written it while this controller skipped the field for its own
+        // write, and a 409 retry rebuilds the marker from this text
+        // (DEF-VIEW-43).
+        const kept =
+          trust === undefined ? parseSettings(source).settings?.trust : trust;
+        if (kept) {
+          settings.trust = kept;
         }
         return settingsEdits(
           source,
@@ -732,7 +739,7 @@ export class NotesController implements IDisposable {
     const options = page?.analysis.options ?? {
       scripting: this._viewer.trusted,
       base: null,
-      extra: ''
+      extra: pageThemeStyle()
     };
     this._analysis =
       page && page.analysis.source === source

@@ -41,9 +41,11 @@ import { Widget } from '@lumino/widgets';
 import * as React from 'react';
 
 import { TabCue } from './cue';
+import { fitPage } from './fit';
 import { Follower } from './follow';
 import { FULL_SCREEN_ICON } from './icons';
 import { parseSettings } from './marks';
+import { applyPageTheme, pageThemeStyle } from './page-theme';
 import { trustSignature } from './request';
 import { analyse, IAnalysis, IPageOptions } from './source';
 import { stripMarkers } from './store';
@@ -111,7 +113,7 @@ export function pageOptions(
   return {
     scripting: trusted,
     base,
-    extra: trusted ? '' : warningStyle(warning)
+    extra: pageThemeStyle() + (trusted ? '' : warningStyle(warning))
   };
 }
 
@@ -183,6 +185,17 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     this._labTrans = (options.translator ?? nullTranslator).load('jupyterlab');
     this.frame.classList.add('jp-zoom-target');
     this.frame.addEventListener('load', () => this._onLoad());
+    // The frame's box changes when the notes panel opens or closes, the
+    // window resizes, or the page goes full screen; measure the page again
+    // for the new width (ACC-VIEW-94). The panel and the full-screen button
+    // need no hook of their own: both change this box.
+    this._fitObserver = new ResizeObserver(() => {
+      const page = this._page;
+      if (page) {
+        fitPage(page.window);
+      }
+    });
+    this._fitObserver.observe(this.frame);
     document.addEventListener('focusin', this._onFocusIn, true);
     window.addEventListener('blur', this._onBlur);
 
@@ -239,6 +252,35 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   /** The frame element. */
   get frame(): HTMLIFrameElement {
     return this.content.node.querySelector('iframe')!;
+  }
+
+  /**
+   * Give the page the lab theme's scrollbar colours as the theme stands now.
+   * A theme change calls this on every open viewer; the style element is
+   * written again in place, so the page is not loaded again.
+   */
+  applyPageTheme(): void {
+    const page = this._page;
+    if (!page) {
+      return;
+    }
+    const { window: win } = page;
+    const scroll = { x: win.scrollX, y: win.scrollY };
+    applyPageTheme(page.document);
+    // The lab hides its whole host for one frame when it switches themes
+    // (ThemeManager._loadTheme), which takes the frame's box away and resets
+    // the page's scroll. Put the reader back once the host is shown again,
+    // after the theme manager's own frame (ACC-VIEW-92).
+    if (scroll.x === 0 && scroll.y === 0) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!this.isDisposed && this._page === page) {
+          win.scrollTo(scroll.x, scroll.y);
+        }
+      });
+    });
   }
 
   /** The page on screen, null while none of ours is loaded. */
@@ -299,7 +341,15 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   chooseTrust(value: boolean): void {
     // A signature check already in flight must not answer over the reader's
     // choice: the check drops its answer when the run has moved (DEF-VIEW-34).
-    this._checkRun++;
+    // The run moves only where the trust does, so a click that keeps it does
+    // not drop the settle's answer and its render (DEF-VIEW-45).
+    if (this.trusted !== value) {
+      this._checkRun++;
+    }
+    // A distrust the file cannot record, as on a read-only file, holds for
+    // the session: a later check must not trust the page from the file
+    // (DEF-VIEW-44).
+    this._sessionDistrust = !value;
     this.trusted = value;
     this._trustChosen.emit(value);
   }
@@ -353,6 +403,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     window.removeEventListener('blur', this._onBlur);
     this._focused = null;
     this._monitor?.dispose();
+    this._fitObserver.disconnect();
     this._cue?.dispose();
     if (this._follower) {
       Follower.release(this._follower);
@@ -500,7 +551,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     ) {
       this._checkRun++;
       this._setRemembered(true);
-      if (!this.trusted) {
+      if (!this.trusted && !this._sessionDistrust) {
         this.trusted = true;
       }
       return true;
@@ -517,8 +568,9 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     }
     if (signature !== null && signature === trust) {
       this._rememberedFor = { path, signature };
+      // The session distrust holds until the reader trusts the page again.
       this._setRemembered(true);
-      if (!this.trusted) {
+      if (!this.trusted && !this._sessionDistrust) {
         this.trusted = true;
       }
     } else {
@@ -606,15 +658,23 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       document: win.document,
       analysis: this._pending
     };
+    // Fit before the scroll is restored: the saved offsets are in the
+    // previous page's units, and the same frame width gives the same ratio,
+    // so the restore lands where the reader was.
+    fitPage(win);
     if (this._scroll) {
       win.scrollTo(this._scroll.x, this._scroll.y);
       this._scroll = null;
     }
     this._pageLoaded.emit(this._page);
+    // A theme change that landed while the page was loading was written for
+    // no document; the page takes the theme as it stands now.
+    this.applyPageTheme();
   }
 
   private _labTrans: TranslationBundle;
   private _monitor: ActivityMonitor<unknown, unknown> | null = null;
+  private _fitObserver: ResizeObserver;
   private _follower: Follower | null = null;
   private _cue: TabCue | null = null;
   private _tabCue = true;
@@ -631,6 +691,8 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   private _trustChosen = new Signal<this, boolean>(this);
   private _remembered = false;
   private _rememberedFor: { path: string; signature: string } | null = null;
+  /** Whether the reader distrusted the page for this session (DEF-VIEW-44). */
+  private _sessionDistrust = false;
   private _checkRun = 0;
   private _rememberedChanged = new Signal<this, boolean>(this);
   private _serverSettings: ServerConnection.ISettings | null;
@@ -715,12 +777,13 @@ ${trans.__("Trusting writes this lab's signature of the file's path into the fil
 
 /**
  * The toolbar checkbox that remembers the page's trust in the file
- * (ACC-VIEW-90). It is checked while the file's settings marker carries this
- * lab's signature of its path, and stays clear under trustByDefault until the
- * reader ticks it. Ticking trusts the page now and writes the signature;
- * clearing distrusts it and removes the signature. A click that stores
- * nothing, as on a read-only file, re-renders the box from the remembered
- * state, so it shows what the file holds.
+ * (ACC-VIEW-90). It is checked while the page is trusted AND the file's
+ * settings marker carries this lab's signature of its path, and stays clear
+ * under trustByDefault until the reader ticks it. Ticking trusts the page now
+ * and writes the signature; clearing distrusts it and removes the signature.
+ * A click that stores nothing, as on a read-only file, re-renders the box
+ * from the session and remembered state, so it shows what the page does and
+ * what the file holds.
  */
 export function createTrustToggle(
   viewer: AdvancedHTMLViewer,
@@ -733,19 +796,24 @@ export function createTrustToggle(
       signal: viewer.rememberedChanged,
       initialSender: viewer,
       children: () =>
-        React.createElement(
-          'label',
-          { className: 'jp-AdvancedHtml-trustToggle' },
-          React.createElement('input', {
-            type: 'checkbox',
-            checked: viewer.remembered,
-            onChange: () => {
-              viewer.chooseTrust(!viewer.remembered);
-              toggle?.update();
-            }
-          }),
-          trans.__('Always trust this page')
-        )
+        React.createElement(UseSignal<AdvancedHTMLViewer, boolean>, {
+          signal: viewer.trustedChanged,
+          initialSender: viewer,
+          children: () =>
+            React.createElement(
+              'label',
+              { className: 'jp-AdvancedHtml-trustToggle' },
+              React.createElement('input', {
+                type: 'checkbox',
+                checked: viewer.remembered && viewer.trusted,
+                onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+                  viewer.chooseTrust(event.target.checked);
+                  toggle?.update();
+                }
+              }),
+              trans.__('Always trust this page')
+            )
+        })
     })
   );
   return toggle;

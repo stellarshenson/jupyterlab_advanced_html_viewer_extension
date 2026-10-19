@@ -82,6 +82,27 @@ The sandboxed frame, trust, refresh and rendering the page again
   - root-cause: 2026-10-16T11:30:26Z @kj JupyterLab 4.6 ToolbarButton.onClick sets pressed = !pressed on every click; createRefreshButton uses that widget
   - log: 2026-10-16T11:30:26Z @kj added
   - log: 2026-10-16T11:39:13Z @kj closed
+- [x] `DEF-VIEW-43` **Trust signature lost when two views write at once** - MEDIUM; two views of one file; tick Always trust in one, add the first comment in the other; the settings line ends without trust= and both boxes clear
+  - evidence: red on 1.0.52 (3 failed) then green at tests/trust-race.spec.ts:256; mutation restoring the stale-field write failed the case; full suite 103 of 103
+  - repro: two views of one file; tick Always trust in one, add the first comment in the other; the settings line ends without trust=
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-19T12:41:49Z @kj src/notes.ts _writeSettings skips _trust while _settingsWrites > 0, and the 409 retry's _flush rebuilds the marker from the stale field
+  - log: 2026-10-19T12:41:49Z @kj added
+  - log: 2026-10-19T13:32:43Z @kj closed: fixed and verified on 1.0.53
+- [x] `DEF-VIEW-44` **Read-only page re-trusted after unticking** - MEDIUM; a remembered file made read-only opens trusted; unticking distrusts for the session, then the next settle trusts it again from the file
+  - evidence: red on 1.0.52 then green at tests/trust-race.spec.ts:302; the read-only distrust survives the next settle; full suite 103 of 103
+  - repro: chmod 0444 a remembered file, open, untick Always trust, add a comment; the page is trusted again
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-19T12:41:50Z @kj src/notes.ts setTrust returns at the writable guard, so _rememberedFor stays; the cached branch in src/viewer.ts sets trusted = true on the next settle
+  - log: 2026-10-19T12:41:50Z @kj added
+  - log: 2026-10-19T13:32:43Z @kj closed: fixed and verified on 1.0.53
+- [x] `DEF-VIEW-45` **Box click during a slow trust check drops the render** - MINOR; with trustByDefault on, a disk change arrives while GET trust is slow; clicking the box drops the in-flight answer and the new content does not render until the next change
+  - evidence: red on 1.0.52 then green at tests/trust-race.spec.ts:358; the settle render survives a same-value click during a slow check; full suite 103 of 103
+  - repro: trustByDefault on, change the file on disk, click the box while GET trust is slow; the new content does not render
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-19T12:41:50Z @kj chooseTrust increments _checkRun unconditionally, so a same-value click cancels the answer and _onSettled returns before rendering
+  - log: 2026-10-19T12:41:50Z @kj added
+  - log: 2026-10-19T13:32:43Z @kj closed: fixed and verified on 1.0.53
 
 ## Where text comes from `ORIGIN`
 
@@ -254,11 +275,13 @@ The list of marks and their notes beside the page
   - log: 2026-09-28T16:05:02Z @kj regression of DEF-PANEL-5: reported: a script that grows the page still rebuilds the note field; Galata DEF-PANEL-5-1 red on build 0.1.6
   - log: 2026-09-28T16:09:40Z @kj closed: fixed: position counts in the page-change comparison only while the minimap shows ticks; src/notes.ts
   - log: 2026-09-28T16:09:55Z @kj edited repro added "trust a page whose script appends a line above the marked paragraph every 300 ms, type in a note field"; test-tags added "FUNCTIONAL"
-- [ ] `DEF-PANEL-42` **Notes panel folds after a comment is added** - MEDIUM; the notes panel was expanded; after a comment was added it is folded again; cause under investigation; src/notes.ts, src/notes-panel.ts
+- [x] `DEF-PANEL-42` **Notes panel folds after a comment is added** - MEDIUM; the notes panel was expanded; after a comment was added it is folded again; cause under investigation; src/notes.ts, src/notes-panel.ts
+  - evidence: Galata DEF-PANEL-42 case green on 1.0.51 (panel stays expanded after a comment); full suite 95 of 95; released 1.0.52
   - related: ACC-PANEL-48, ACC-PANEL-49 - the panel states and the opening state the fold breaks
   - repro: expand the notes panel on a file with a mark, add a comment, watch the panel fold
   - test-tags: FUNCTIONAL
   - log: 2026-10-18T13:08:10Z @kj added
+  - log: 2026-10-19T12:41:37Z @kj closed: fixed and released in 1.0.52
 
 ## Functional tests `TEST`
 

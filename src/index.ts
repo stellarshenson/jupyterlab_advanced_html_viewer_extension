@@ -170,7 +170,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // eslint-disable-next-line jupyter/incorrect-translator-usage -- the bundle of JupyterLab's own catalogue, whose strings this extension's extractor must not take
     const labTrans = labTranslator.load('jupyterlab');
     applySwatchColours(document.body);
-    themeManager?.themeChanged.connect(() => applySwatchColours(document.body));
     const handle = new NoteHandle(trans);
     const language = labTranslator.languageCode;
     let current = readSettings(null);
@@ -211,6 +210,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
         name: widget => widget.context.path
       });
     }
+    // The lab's own slot ran before this one, so the new theme's variables
+    // are in place when the page's style is written.
+    themeManager?.themeChanged.connect(() => {
+      applySwatchColours(document.body);
+      tracker.forEach(viewer => viewer.applyPageTheme());
+    });
 
     const attachments = new Map<AdvancedHTMLViewer, IAttachment>();
 
