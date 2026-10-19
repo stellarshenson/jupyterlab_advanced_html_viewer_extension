@@ -22,6 +22,30 @@
   outline: none;
 }
 
+/*
+ | The Always trust this page checkbox beside the Trust HTML button
+ | (ACC-VIEW-90). It reads as the toolbar's other text and takes the theme's
+ | brand colour for its tick.
+ */
+.jp-AdvancedHtml-trustToggle {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--jp-ui-font-color1);
+  font-family: var(--jp-ui-font-family);
+  font-size: var(--jp-ui-font-size1);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.jp-AdvancedHtml-trustToggle input {
+  margin: 0;
+  accent-color: var(--jp-brand-color1);
+  cursor: pointer;
+}
+
 .jp-AdvancedHtml-tooltip {
   position: fixed;
   z-index: 10000;

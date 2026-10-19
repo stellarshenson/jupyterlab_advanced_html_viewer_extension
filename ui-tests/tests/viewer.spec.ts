@@ -159,6 +159,30 @@ const trustIn = (apiPath: string): string | null =>
     fileText(apiPath)
   )?.[1] ?? null;
 
+/** The Always trust checkbox of the viewer in front. */
+const alwaysTrustBox = (page: any) =>
+  page.locator(`${SHOWN} .jp-Toolbar .jp-AdvancedHtml-trustToggle input`);
+
+/** Record the sandbox of every frame the lab loads from now on. */
+async function watchLoads(page: any): Promise<void> {
+  await page.evaluate(() => {
+    const loads: string[] = [];
+    (window as any).loads = loads;
+    new MutationObserver(records => {
+      for (const record of records) {
+        const frame = record.target as HTMLIFrameElement;
+        if (frame.getAttribute('src')?.startsWith('blob:')) {
+          loads.push(frame.getAttribute('sandbox') ?? '');
+        }
+      }
+    }).observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['src']
+    });
+  });
+}
+
 test('ACC-VIEW-85 Trust HTML stores the trust in the file, which then opens trusted', async ({
   page,
   tmpPath
@@ -261,6 +285,151 @@ test('DEF-VIEW-36 a page whose script holds a comment opening reopens trusted', 
   expect(await sandboxShown(page)).toContain('allow-scripts');
 });
 
+test('ACC-VIEW-90 the Always trust checkbox shows and stores the remembered state', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'always-trust');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  const box = alwaysTrustBox(page);
+  await expect(box).toBeVisible();
+  await expect(box).not.toBeChecked();
+  await expect(
+    page
+      .locator(`${SHOWN} .jp-Toolbar`)
+      .getByText('Trust HTML', { exact: true })
+  ).toBeVisible();
+
+  // Ticking trusts the page now and writes the signature into the file.
+  await box.click();
+  await waitForText(page, 'Written by a script.');
+  await expect.poll(() => trustIn(file)).not.toBeNull();
+  await expect(box).toBeChecked();
+  await expect(
+    page
+      .locator(`${SHOWN} .jp-Toolbar`)
+      .getByText('Distrust HTML', { exact: true })
+  ).toBeVisible();
+
+  // Opened again, the page loads with its scripts from the first load on.
+  await page.evaluate(async () => {
+    await (window as any).jupyterapp.commands.execute('application:close-all');
+  });
+  await watchLoads(page);
+  await openViewer(page, file, 'Written by a script.');
+  await expect(box).toBeChecked();
+  const loads: string[] = await page.evaluate(() => (window as any).loads);
+  expect(loads.length).toBeGreaterThan(0);
+  expect(loads.every(sandbox => sandbox.includes('allow-scripts'))).toBe(true);
+
+  // Clearing it takes the signature out and stops the scripts.
+  await box.click();
+  await expect.poll(() => fileText(file)).toBe(SCRIPTED);
+  await expect(box).not.toBeChecked();
+  await expect
+    .poll(() => frameText(page))
+    .not.toContain('Written by a script.');
+  await expect(
+    page
+      .locator(`${SHOWN} .jp-Toolbar`)
+      .getByText('Trust HTML', { exact: true })
+  ).toBeVisible();
+
+  // Opened again, the file is untrusted.
+  await page.evaluate(async () => {
+    await (window as any).jupyterapp.commands.execute('application:close-all');
+  });
+  await openViewer(page, file, 'Text written in the file.');
+  await expect(box).not.toBeChecked();
+  expect(await frameText(page)).not.toContain('Written by a script.');
+});
+
+test('ACC-VIEW-90 the Trust HTML button and the Always trust checkbox agree', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'agree');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  const box = alwaysTrustBox(page);
+  const toolbar = page.locator(`${SHOWN} .jp-Toolbar`);
+  await toolbar.getByText('Trust HTML', { exact: true }).click();
+  await waitForText(page, 'Written by a script.');
+  await expect(box).toBeChecked();
+  await expect.poll(() => trustIn(file)).not.toBeNull();
+  await toolbar.getByText('Distrust HTML', { exact: true }).click();
+  await expect(box).not.toBeChecked();
+  await expect.poll(() => fileText(file)).toBe(SCRIPTED);
+});
+
+test('ACC-VIEW-90 on a read-only file the box stays clear and shows no save error', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'read-only');
+  writeFile(file, SCRIPTED);
+  fs.chmodSync(onDisk(file), 0o444);
+  try {
+    await openViewer(page, file, 'Text written in the file.');
+    const box = alwaysTrustBox(page);
+    await box.click();
+    // The trust holds for this session only: nothing is stored, so the box
+    // shows what the file holds.
+    await waitForText(page, 'Written by a script.');
+    await expect(box).not.toBeChecked();
+    await expect.poll(() => fileText(file)).toBe(SCRIPTED);
+    await page.waitForTimeout(1000);
+    await expect(page.getByText('File Save Error')).toHaveCount(0);
+    await expect(page.locator('.lm-TabBar-tab.jp-mod-dirty')).toHaveCount(0);
+    await expect(
+      page
+        .locator(`${SHOWN} .jp-Toolbar`)
+        .getByText('Distrust HTML', { exact: true })
+    ).toBeVisible();
+  } finally {
+    fs.chmodSync(onDisk(file), 0o644);
+  }
+});
+
+test('ACC-VIEW-90 two views keep one remembered state and a change from disk clears it', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'two-views');
+  writeFile(file, SCRIPTED);
+  await openViewer(page, file, 'Text written in the file.');
+  await page.evaluate(() =>
+    (window as any).jupyterapp.commands.execute('docmanager:clone')
+  );
+  const tabs = page.locator('.lm-TabBar-tab', { hasText: 'two-views.html' });
+  await expect(tabs).toHaveCount(2);
+  const overViews = <T>(body: string): Promise<T> =>
+    page.evaluate(
+      ([target, views, code]: string[]) =>
+        new Function('target', `const views = ${views}; ${code}`)(target),
+      [file, VIEWS, body]
+    );
+  const checked = (): Promise<boolean[]> =>
+    overViews<boolean[]>(
+      `return views.map(view =>
+        view.node.querySelector('.jp-AdvancedHtml-trustToggle input').checked);`
+    );
+
+  // Ticking in the front view writes the marker; both views follow it.
+  // Both viewers are visible, so the locator names one of them explicitly.
+  await alwaysTrustBox(page).first().click();
+  await expect.poll(() => trustIn(file)).not.toBeNull();
+  await expect(alwaysTrustBox(page).first()).toBeChecked();
+  await tabs.nth(0).click();
+  await expect.poll(checked).toEqual([true, true]);
+
+  // A change from disk without the marker clears both boxes.
+  writeFile(file, SCRIPTED);
+  await expect.poll(checked, { timeout: 10000 }).toEqual([false, false]);
+  await expect(alwaysTrustBox(page).first()).not.toBeChecked();
+});
+
 test('DEF-VIEW-37 a change during a slow trust check does not load the page without its scripts', async ({
   page,
   tmpPath
@@ -330,6 +499,24 @@ test.describe('with the built-in viewer trusting by default', () => {
     writeFile(file, SCRIPTED);
     await openViewer(page, file, 'Written by a script.');
     await waitForText(page, 'Text written in the file.');
+  });
+
+  test('ACC-VIEW-90 with trustByDefault the box stays clear and writes nothing', async ({
+    page,
+    tmpPath
+  }) => {
+    const file = fixture(tmpPath, 'remembered-by-default');
+    writeFile(file, SCRIPTED);
+    await openViewer(page, file, 'Written by a script.');
+    await waitForText(page, 'Text written in the file.');
+    await expect(alwaysTrustBox(page)).not.toBeChecked();
+    await expect(
+      page
+        .locator(`${SHOWN} .jp-Toolbar`)
+        .getByText('Distrust HTML', { exact: true })
+    ).toBeVisible();
+    expect(fileText(file)).toBe(SCRIPTED);
+    expect(trustIn(file)).toBeNull();
   });
 });
 

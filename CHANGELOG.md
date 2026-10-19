@@ -2,6 +2,16 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.52] - 2026-10-19
+
+### Added
+
+- An **Always trust this page** checkbox beside the Trust HTML button remembers trust in the file: ticking it trusts the page now and writes this lab's signature of the file's path into the settings line, so the file opens trusted next time, and clearing it distrusts and removes the signature. It stays clear with trust-by-default on, on a read-only file, and for a value this lab did not sign. The Trust HTML button stays and shares the same state
+
+### Fixed
+
+- The notes panel no longer folds after a comment is added: the first mark now stores the expanded panel state in the settings line instead of expanding in memory only, so the note write no longer restores the stored hidden state
+
 ## [1.0.48] - 2026-10-16
 
 ### Added

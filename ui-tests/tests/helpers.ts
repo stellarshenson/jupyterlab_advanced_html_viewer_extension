@@ -79,7 +79,7 @@ export function fixture(tmpPath: string, name: string): string {
  */
 export function unmarked(text: string): string {
   return text
-    .replace(/\n?<!--\s*marks:settings[\s\S]*?-->/g, '')
+    .replace(/\r?\n?<!--\s*marks:settings[\s\S]*?-->/g, '')
     .replace(/<!--\s*\/?mark:[\s\S]*?-->/g, '');
 }
 

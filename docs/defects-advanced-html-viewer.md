@@ -254,6 +254,11 @@ The list of marks and their notes beside the page
   - log: 2026-09-28T16:05:02Z @kj regression of DEF-PANEL-5: reported: a script that grows the page still rebuilds the note field; Galata DEF-PANEL-5-1 red on build 0.1.6
   - log: 2026-09-28T16:09:40Z @kj closed: fixed: position counts in the page-change comparison only while the minimap shows ticks; src/notes.ts
   - log: 2026-09-28T16:09:55Z @kj edited repro added "trust a page whose script appends a line above the marked paragraph every 300 ms, type in a note field"; test-tags added "FUNCTIONAL"
+- [ ] `DEF-PANEL-42` **Notes panel folds after a comment is added** - MEDIUM; the notes panel was expanded; after a comment was added it is folded again; cause under investigation; src/notes.ts, src/notes-panel.ts
+  - related: ACC-PANEL-48, ACC-PANEL-49 - the panel states and the opening state the fold breaks
+  - repro: expand the notes panel on a file with a mark, add a comment, watch the panel fold
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-18T13:08:10Z @kj added
 
 ## Functional tests `TEST`
 

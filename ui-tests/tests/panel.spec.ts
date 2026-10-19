@@ -465,6 +465,33 @@ test('DEF-PANEL-5-1 keeps the note field while a script grows the page above the
   ).toEqual({ connected: true, focused: true, text: 'a draft' });
 });
 
+test('DEF-PANEL-42 keeps the notes panel expanded after a comment is added', async ({
+  page,
+  tmpPath
+}) => {
+  // The reader hid the panel earlier, so the file stores panel=hidden, and it
+  // holds no mark yet.
+  const file = fixture(tmpPath, 'fold');
+  writeFile(file, `${PLAIN}<!-- marks:settings panel=hidden -->\n`);
+  await openViewer(page, file, 'apples and pears');
+  await expect(badge(page)).toBeVisible();
+  // Add Comment writes the first mark and shows the panel on it. The show is
+  // stored as a panel choice with the mark, so the read the note write runs
+  // finds it (DEF-PANEL-42).
+  await openMenu(page, await select(page, 'oranges'));
+  await choose(page, 'Add Comment');
+  await expect(panel(page)).toHaveClass(/jp-AdvancedHtml-notes-expanded/);
+  await expect.poll(() => fileText(file)).toContain('panel=expanded');
+  // The comment is written where the panel is listed beside it.
+  await field(page).fill('Which kind?');
+  await page.keyboard.press('Shift+Enter');
+  await expect.poll(() => fileText(file)).toContain('Which kind?');
+  // The panel stays expanded through the read the note write runs.
+  await expect(panel(page)).toHaveClass(/jp-AdvancedHtml-notes-expanded/);
+  await expect(rows(page)).toHaveCount(1);
+  await expect(page.locator('.jp-AdvancedHtml-notesTick')).toHaveCount(0);
+});
+
 test.describe('the note handle', () => {
   test.use({
     mockSettings: { ...galata.DEFAULT_SETTINGS, [PLUGIN_ID]: { author: '' } }

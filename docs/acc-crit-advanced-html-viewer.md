@@ -29,12 +29,16 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - test-tags: FUNCTIONAL
   - log: 2026-09-28T13:03:52Z @kj added
   - log: 2026-09-28T13:54:25Z @kj closed: verified
+  - log: 2026-10-18T13:33:41Z @kj amended title "Trust HTML runs the scripts" -> "Trusting runs the scripts"; text "the toolbar button Trust HTML adds allow-scripts allow-popups to the sandbox, renders the page again and turns into Distrust HTML" -> "checking the toolbar Always trust toggle adds allow-scripts and allow-popups to the sandbox and renders the page again, the toggle checked"
+  - log: 2026-10-18T13:40:58Z @kj amended title "Trusting runs the scripts" -> "Trust HTML runs the scripts"; text "checking the toolbar Always trust toggle adds allow-scripts and allow-popups to the sandbox and renders the page again, the toggle checked" -> "the toolbar button Trust HTML adds allow-scripts allow-popups to the sandbox, renders the page again and turns into Distrust HTML"
 - [x] `ACC-VIEW-4` **Distrust HTML stops the scripts** - HIGH; Distrust HTML takes allow-scripts and allow-popups off, renders the page again without scripts and turns back into Trust HTML
   - evidence: Galata 'ACC-VIEW-4 Distrust HTML stops the scripts' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
   - test: Galata viewer.spec 'ACC-VIEW-4': trust, then press Distrust HTML, assert the script text is gone and the button reads Trust HTML
   - test-tags: FUNCTIONAL
   - log: 2026-09-28T13:03:52Z @kj added
   - log: 2026-09-28T13:54:25Z @kj closed: verified
+  - log: 2026-10-18T13:33:41Z @kj amended title "Distrust HTML stops the scripts" -> "Distrusting stops the scripts"; text "Distrust HTML takes allow-scripts and allow-popups off, renders the page again without scripts and turns back into Trust HTML" -> "clearing the toolbar Always trust toggle takes allow-scripts and allow-popups off, renders the page again without scripts and leaves the toggle unchecked"
+  - log: 2026-10-18T13:40:58Z @kj amended title "Distrusting stops the scripts" -> "Distrust HTML stops the scripts"; text "clearing the toolbar Always trust toggle takes allow-scripts and allow-popups off, renders the page again without scripts and leaves the toggle unchecked" -> "Distrust HTML takes allow-scripts and allow-popups off, renders the page again without scripts and turns back into Trust HTML"
 - [x] `ACC-VIEW-5` **Refresh renders the file again** - HIGH; the toolbar button Rerender HTML Document reloads the file from disk and renders the page again while the document has no unsaved changes
   - evidence: Galata 'ACC-VIEW-5 Refresh renders the file again' in ui-tests/tests/viewer.spec.ts; green on build 0.1.3: Galata 56 of 56, jest 61 of 61, pytest 8 of 8
   - test: Galata viewer.spec 'ACC-VIEW-5': trusted fixture writes a random number; press the button, assert a new number
@@ -100,6 +104,8 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - mechanism: 2026-10-16T09:38:21Z @kj the Trust button emits trustChosen; NotesController fetches the signature and writes the settings marker with it, or without it; at context ready the viewer compares the marker's value with the route's signature of context.localPath before the first render
   - log: 2026-10-16T09:38:21Z @kj added
   - log: 2026-10-16T10:00:02Z @kj closed
+  - log: 2026-10-18T13:33:41Z @kj amended title "Trust HTML stores the trust in the file" -> "The trust toggle stores the trust in the file"; text "Trust HTML writes trust=<the route's signature of the file's path> into the settings marker and Distrust HTML removes it; a file whose marker carries the signature of its own path opens trusted, its scripts running from the first render; trustByDefault writes nothing" -> "checking the toolbar Always trust toggle writes trust=<the route's signature of the file's path> into the settings marker and clearing it removes it; a file whose marker carries the signature of its own path opens trusted, its scripts running from the first render, the toggle checked; trustByDefault writes nothing"
+  - log: 2026-10-18T13:40:58Z @kj amended title "The trust toggle stores the trust in the file" -> "Trust HTML stores the trust in the file"; text "checking the toolbar Always trust toggle writes trust=<the route's signature of the file's path> into the settings marker and clearing it removes it; a file whose marker carries the signature of its own path opens trusted, its scripts running from the first render, the toggle checked; trustByDefault writes nothing" -> "Trust HTML writes trust=<the route's signature of the file's path> into the settings marker and Distrust HTML removes it; a file whose marker carries the signature of its own path opens trusted, its scripts running from the first render; trustByDefault writes nothing"
 - [x] `ACC-VIEW-86` **A trust marker made elsewhere trusts nothing** - CRITICAL; a file whose trust= value is not this lab's signature of its path - written by hand, signed in another lab, or carried to another path - opens untrusted and runs no script
   - evidence: Galata 'ACC-VIEW-86' green on 1.0.39: a hand-written value and a trusted file copied to another path run no script; red on mutant build 1.0.38 that trusts any value when the route answers
   - test: Galata viewer.spec 'ACC-VIEW-86': a hand-written value and a trusted file copied to another path both run no script
@@ -130,6 +136,14 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - mechanism: 2026-10-16T13:48:30Z @kj the page's contextmenu listener in src/notes.ts leaves the event alone while the frame is document.fullscreenElement
   - log: 2026-10-16T13:48:30Z @kj added
   - log: 2026-10-16T14:05:12Z @kj closed
+- [ ] `ACC-VIEW-90` **Extra trust checkbox remembered in the file** - HIGH; an extra toolbar checkbox beside the Trust HTML button is checked while the file's settings marker holds this lab's signature of its path; ticking it trusts the page and writes the signature, clearing it distrusts and removes it; the file opens trusted next time while the signature stays
+  - related: ACC-VIEW-85, ACC-VIEW-86 - the signature write and signature check this control reuses
+  - test: open a file with no marker, assert clear; tick, reopen, assert ticked and the script ran; clear, reopen, assert clear and no script
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-18T13:41:02Z @kj the extra box reads the trust=<signature> field of the marks:settings marker through GET trust and shares it with the Trust HTML button, which stays; the file never carries a plain boolean that trusts itself
+  - log: 2026-10-18T13:08:08Z @kj added
+  - log: 2026-10-18T13:40:58Z @kj amended title "Trust checkbox remembered in the file" -> "Extra trust checkbox remembered in the file"; text "a toolbar checkbox or toggle for trusting this page is checked while the file's settings marker holds this lab's signature of its path, and shows that stored state at open; ticking trusts the page and writes the signature, clearing distrusts and removes it" -> "HIGH; an extra toolbar checkbox beside the Trust HTML button is checked while the file's settings marker holds this lab's signature of its path; ticking it trusts the page and writes the signature, clearing it distrusts and removes it; the file opens trusted next time while the signature stays"
+  - log: 2026-10-18T13:41:02Z @kj mechanism updated "2026-10-18T13:08:08Z @kj the box reads the trust=<signature> field of the marks:settings marker through GET trust; the file never carries a plain boolean that trusts itself" -> "the extra box reads the trust=<signature> field of the marks:settings marker through GET trust and shares it with the Trust HTML button, which stays; the file never carries a plain boolean that trusts itself"
 
 ## Following the file `LIVE`
 

@@ -54,6 +54,7 @@ function fakeViewer(text: string, dirty = false): any {
     disposed: new Signal<any, void>(owner),
     page: null,
     trusted: false,
+    setRemembered: jest.fn(),
     follower: null,
     frame: document.createElement('iframe'),
     showsSameText: () => false,
@@ -149,6 +150,29 @@ describe('writing a marker to disk', () => {
     expect(viewer.state.text).toBe(PAGE);
   });
 
+  it('ACC-VIEW-90 marks the page remembered after the signature write and forgotten after its removal', async () => {
+    const trust = 'b'.repeat(64);
+    const viewer = fakeViewer(PAGE);
+    fetchMock.mockResolvedValue(answer(404, '<html>not found</html>'));
+    signatureMock.mockResolvedValue(trust);
+    const controller = await controllerOf(viewer);
+    viewer.trusted = true;
+    await controller.setTrust(true);
+    expect(viewer.setRemembered).toHaveBeenCalledWith(true, trust);
+    viewer.trusted = false;
+    await controller.setTrust(false);
+    expect(viewer.setRemembered).toHaveBeenLastCalledWith(false, null);
+    expect(viewer.state.text).toBe(PAGE);
+  });
+
+  it('ACC-VIEW-90 leaves the remembered state alone when only the panel state is written', async () => {
+    const viewer = fakeViewer(PAGE);
+    fetchMock.mockResolvedValue(answer(404, '<html>not found</html>'));
+    const controller = await controllerOf(viewer);
+    await controller.setPanelState('minimap');
+    expect(viewer.setRemembered).not.toHaveBeenCalled();
+  });
+
   it('DEF-STORE-38 writes the panel state with the signature only where the reader chose one', async () => {
     const trust = 'f'.repeat(64);
     const viewer = fakeViewer(PAGE);
@@ -186,6 +210,7 @@ describe('writing a marker to disk', () => {
     answerSignature('c'.repeat(64));
     await trusting;
     expect(viewer.state.text).not.toContain('trust=');
+    expect(viewer.setRemembered).not.toHaveBeenCalled();
   });
 
   it('DEF-VIEW-35 writes nothing into a file the lab cannot write', async () => {
@@ -198,6 +223,7 @@ describe('writing a marker to disk', () => {
     expect(viewer.state.text).toBe(PAGE);
     expect(signatureMock).not.toHaveBeenCalled();
     expect(viewer.context.save).not.toHaveBeenCalled();
+    expect(viewer.setRemembered).not.toHaveBeenCalled();
   });
 
   it('ACC-VIEW-85 writes nothing where the route gives no signature', async () => {

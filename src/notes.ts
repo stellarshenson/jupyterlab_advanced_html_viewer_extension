@@ -331,10 +331,12 @@ export class NotesController implements IDisposable {
     this._page?.window.getSelection()?.removeAllRanges();
     this._selection = null;
     this._showSelection();
-    // The first mark of a document shows the panel it is listed in.
+    // The first mark of a document shows the panel it is listed in, and the
+    // state is stored like any other panel choice: a later read puts the
+    // stored state back, so an expansion held in memory alone folds on the
+    // next write (DEF-PANEL-42).
     if (!hadMarks && this._state === 'hidden') {
-      this._state = 'expanded';
-      this._changed.emit();
+      await this.setPanelState('expanded');
     }
     return id;
   }
@@ -512,7 +514,9 @@ export class NotesController implements IDisposable {
       return;
     }
     this._trust = trust;
-    await this._writeSettings();
+    if (await this._writeSettings()) {
+      this._viewer.setRemembered(this._trust !== null, this._trust);
+    }
   }
 
   /**
@@ -520,10 +524,10 @@ export class NotesController implements IDisposable {
    * state only where the reader chose one: a file that holds none opens its
    * panel by whether it has marks.
    */
-  private async _writeSettings(): Promise<void> {
+  private async _writeSettings(): Promise<boolean> {
     this._settingsWrites++;
     try {
-      await this._write(source => {
+      return await this._write(source => {
         const settings: IMarksSettings = {};
         if (this._panelChosen) {
           settings.panel = this._state;

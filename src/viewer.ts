@@ -116,6 +116,32 @@ export function pageOptions(
 }
 
 /**
+ * The trust value the file's settings marker carries: the lab's signature of
+ * the file's path where one is written, undefined where none reads. The
+ * marker is read from the comments as the parser finds them, as the notes
+ * controller reads and writes it: a plain scan takes a '<!--' inside a
+ * script for the start of a comment (DEF-VIEW-36).
+ */
+export function trustValue(source: string): string | undefined {
+  return source.includes(' trust=')
+    ? parseSettings(analyse(source, pageOptions(false, null, '')).comments)
+        .settings?.trust
+    : undefined;
+}
+
+/**
+ * Whether the file is remembered as trusted: this lab signed the file's path
+ * with the value the marker carries. A value of the right shape that the
+ * route did not sign remembers nothing (ACC-VIEW-86).
+ */
+export function rememberedTrust(
+  source: string,
+  signature: string | null
+): boolean {
+  return signature !== null && trustValue(source) === signature;
+}
+
+/**
  * A page loaded in the frame, with the reading of the file it was made from.
  */
 export interface IPage {
@@ -271,6 +297,9 @@ export class AdvancedHTMLViewer extends DocumentWidget<
 
   /** Trust or distrust the page at the reader's word. */
   chooseTrust(value: boolean): void {
+    // A signature check already in flight must not answer over the reader's
+    // choice: the check drops its answer when the run has moved (DEF-VIEW-34).
+    this._checkRun++;
     this.trusted = value;
     this._trustChosen.emit(value);
   }
@@ -278,6 +307,30 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   /** Emitted when the page is trusted or distrusted. */
   get trustedChanged(): ISignal<this, boolean> {
     return this._trustedChanged;
+  }
+
+  /**
+   * The file's remembered trust: the settings marker carries this lab's
+   * signature of the file's path. It is not the session trust, so a page
+   * trusted by default stays clear until the signature is written.
+   */
+  get remembered(): boolean {
+    return this._remembered;
+  }
+
+  /** Emitted when the remembered trust changes. */
+  get rememberedChanged(): ISignal<this, boolean> {
+    return this._rememberedChanged;
+  }
+
+  /**
+   * Set the remembered state after the notes controller wrote the marker.
+   * The signature primes the cache, so the next check asks no route.
+   */
+  setRemembered(value: boolean, signature: string | null = null): void {
+    this._rememberedFor =
+      value && signature ? { path: this.context.localPath, signature } : null;
+    this._setRemembered(value);
   }
 
   /**
@@ -380,27 +433,11 @@ export class AdvancedHTMLViewer extends DocumentWidget<
    * lab's signature of the file's path (ACC-VIEW-85). The signature is asked
    * for before the page loads, so a trusted page never loads without its
    * scripts first. Any other value, and a server that gives no signature,
-   * trusts nothing (ACC-VIEW-86). The marker is read from the comments as the
-   * parser finds them, as the notes controller reads and writes it: a plain
-   * scan takes a '<!--' inside a script for the start of a comment.
+   * trusts nothing (ACC-VIEW-86).
    */
   private async _open(): Promise<void> {
-    const source = this.context.model.toString();
-    const trust = source.includes(' trust=')
-      ? parseSettings(analyse(source, pageOptions(false, null, '')).comments)
-          .settings?.trust
-      : undefined;
-    if (trust && !this.trusted && this._serverSettings) {
-      const signature = await trustSignature(
-        this._serverSettings,
-        this.context.localPath
-      );
-      if (this.isDisposed) {
-        return;
-      }
-      if (signature === trust) {
-        this.trusted = true;
-      }
+    if (!(await this._checkRemembered()) || this.isDisposed) {
+      return;
     }
     // The trusted setter renders when trust changes, also at a Trust click
     // during the check. Render here where no render is under way and the
@@ -414,11 +451,90 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     }
   }
 
-  /** The document stopped changing: render, unless only markers moved. */
-  private _onSettled(): void {
+  /**
+   * The document stopped changing: read the remembered trust and render,
+   * unless only markers moved. A change from disk that removes the signature
+   * clears the box; one that brings it checks the box, and renders the page
+   * trusted first, never untrusted first (DEF-VIEW-37).
+   */
+  private async _onSettled(): Promise<void> {
+    if (!(await this._checkRemembered()) || this.isDisposed) {
+      return;
+    }
     if (!this.showsSameText(this.context.model.toString())) {
       void this._render();
     }
+  }
+
+  /**
+   * Read the file's remembered trust: the value its settings marker carries,
+   * confirmed against the route. A cached signature for the same path is not
+   * asked again. The answer is dropped when the viewer is disposed, when
+   * `chooseTrust` moved the run, or when the file changed while the route was
+   * asked, so a signature that arrives after the reader cleared the box
+   * cannot check it (DEF-VIEW-34), and one that arrives after the marker left
+   * the file cannot trust it. An answer that needs no request moves the run
+   * too, so it supersedes a request already in flight. This never distrusts
+   * an open page: removing the marker clears the remembered state only.
+   *
+   * @returns whether the answer applies; false where a later check owns the
+   *   trust or an action replaced it, so the caller renders nothing
+   */
+  private async _checkRemembered(): Promise<boolean> {
+    const trust = trustValue(this.context.model.toString());
+    if (!trust) {
+      this._checkRun++;
+      this._rememberedFor = null;
+      this._setRemembered(false);
+      return true;
+    }
+    if (!this._serverSettings) {
+      this._checkRun++;
+      this._setRemembered(false);
+      return true;
+    }
+    const path = this.context.localPath;
+    if (
+      this._rememberedFor?.path === path &&
+      this._rememberedFor.signature === trust
+    ) {
+      this._checkRun++;
+      this._setRemembered(true);
+      if (!this.trusted) {
+        this.trusted = true;
+      }
+      return true;
+    }
+    const run = ++this._checkRun;
+    const signature = await trustSignature(this._serverSettings, path);
+    if (this.isDisposed || run !== this._checkRun) {
+      return false;
+    }
+    // The file may have changed while the route was asked. An answer about
+    // the old text must not decide the new text: check the new text.
+    if (trustValue(this.context.model.toString()) !== trust) {
+      return this._checkRemembered();
+    }
+    if (signature !== null && signature === trust) {
+      this._rememberedFor = { path, signature };
+      this._setRemembered(true);
+      if (!this.trusted) {
+        this.trusted = true;
+      }
+    } else {
+      this._rememberedFor = null;
+      this._setRemembered(false);
+    }
+    return true;
+  }
+
+  /** Set the remembered state, telling the box when it changes. */
+  private _setRemembered(value: boolean): void {
+    if (this._remembered === value) {
+      return;
+    }
+    this._remembered = value;
+    this._rememberedChanged.emit(value);
   }
 
   /**
@@ -513,6 +629,10 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   private _pageLoaded = new Signal<this, IPage | null>(this);
   private _trustedChanged = new Signal<this, boolean>(this);
   private _trustChosen = new Signal<this, boolean>(this);
+  private _remembered = false;
+  private _rememberedFor: { path: string; signature: string } | null = null;
+  private _checkRun = 0;
+  private _rememberedChanged = new Signal<this, boolean>(this);
   private _serverSettings: ServerConnection.ISettings | null;
 }
 
@@ -594,6 +714,44 @@ ${trans.__("Trusting writes this lab's signature of the file's path into the fil
 }
 
 /**
+ * The toolbar checkbox that remembers the page's trust in the file
+ * (ACC-VIEW-90). It is checked while the file's settings marker carries this
+ * lab's signature of its path, and stays clear under trustByDefault until the
+ * reader ticks it. Ticking trusts the page now and writes the signature;
+ * clearing distrusts it and removes the signature. A click that stores
+ * nothing, as on a read-only file, re-renders the box from the remembered
+ * state, so it shows what the file holds.
+ */
+export function createTrustToggle(
+  viewer: AdvancedHTMLViewer,
+  translator?: ITranslator
+): Widget {
+  const trans = (translator ?? nullTranslator).load('jupyterlab');
+  let toggle: ReactWidget | null = null;
+  toggle = ReactWidget.create(
+    React.createElement(UseSignal<AdvancedHTMLViewer, boolean>, {
+      signal: viewer.rememberedChanged,
+      initialSender: viewer,
+      children: () =>
+        React.createElement(
+          'label',
+          { className: 'jp-AdvancedHtml-trustToggle' },
+          React.createElement('input', {
+            type: 'checkbox',
+            checked: viewer.remembered,
+            onChange: () => {
+              viewer.chooseTrust(!viewer.remembered);
+              toggle?.update();
+            }
+          }),
+          trans.__('Always trust this page')
+        )
+    })
+  );
+  return toggle;
+}
+
+/**
  * Options of the viewer factory.
  */
 export interface IAdvancedHTMLViewerFactoryOptions extends DocumentRegistry.IWidgetFactoryOptions<AdvancedHTMLViewer> {
@@ -601,7 +759,7 @@ export interface IAdvancedHTMLViewerFactoryOptions extends DocumentRegistry.IWid
 }
 
 /**
- * The factory of the viewer, which puts the three buttons on its toolbar.
+ * The factory of the viewer, which puts its controls on the toolbar.
  */
 export class AdvancedHTMLViewerFactory extends ABCWidgetFactory<
   AdvancedHTMLViewer,
@@ -628,6 +786,10 @@ export class AdvancedHTMLViewerFactory extends ABCWidgetFactory<
     return [
       { name: 'refresh', widget: createRefreshButton(widget, this.translator) },
       { name: 'trust', widget: createTrustButton(widget, this.translator) },
+      {
+        name: 'alwaysTrust',
+        widget: createTrustToggle(widget, this.translator)
+      },
       {
         name: 'fullScreen',
         widget: createFullScreenButton(widget, this.translator)
