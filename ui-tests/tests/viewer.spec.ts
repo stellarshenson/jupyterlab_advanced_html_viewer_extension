@@ -1190,7 +1190,7 @@ test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, u
     timeout: 6000
   });
   // Two looks without a change, and nobody has looked: a filled round dot,
-  // standing still, in the theme's brand colour.
+  // standing still, in the theme's brand colour 2.
   await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/, {
     timeout: 10000
   });
@@ -1199,7 +1199,7 @@ test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, u
     .evaluate((label: Element) => {
       const style = getComputedStyle(label, '::before');
       const probe = document.createElement('span');
-      probe.style.color = 'var(--jp-brand-color1)';
+      probe.style.color = 'var(--jp-brand-color2)';
       document.body.appendChild(probe);
       const brand = getComputedStyle(probe).color;
       probe.remove();

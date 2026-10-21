@@ -2,6 +2,12 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.60] - 2026-10-21
+
+### Changed
+
+- The unread dot on a tab takes the theme's brand colour 2 instead of brand colour 1; it follows every light and dark theme
+
 ## [1.0.58] - 2026-10-21
 
 ### Changed

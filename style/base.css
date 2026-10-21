@@ -766,8 +766,8 @@ body[data-jp-theme-light='false']
  * another. Once they stop, the marker stands there as a filled round dot
  * until the tab is brought to the front (ACC-LIVE-79). A box and not a
  * character, so its colour holds whatever colour another extension gives the
- * tab's text. Its colour is the theme's brand colour, the one the theme uses
- * for selection and focus, so the dot follows every theme. The dot is centred
+ * tab's text. Its colour is the theme's brand colour 2, so the dot follows
+ * every theme. The dot is centred
  * on the height of capitals and digits, which stand taller than the lowercase
  * letters middle alignment centres on. Forced colours would paint its
  * background in the tab's own colour and hide it.
@@ -777,7 +777,7 @@ body[data-jp-theme-light='false']
   height: 7px;
   vertical-align: calc((1cap - 7px) / 2);
   content: '';
-  background-color: var(--jp-brand-color1);
+  background-color: var(--jp-brand-color2);
   border-radius: 50%;
   forced-color-adjust: none;
 }
