@@ -2,6 +2,12 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.58] - 2026-10-21
+
+### Changed
+
+- The unread dot on a tab takes the theme's brand colour, the one the theme uses for selection and focus, instead of fixed greens; it follows every light and dark theme
+
 ## [1.0.56] - 2026-10-19
 
 ### Added

@@ -296,24 +296,19 @@ describe('the tab marker (ACC-LIVE-70)', () => {
       expect(markerRule(TAB_CHANGING_CLASS)).not.toContain('animation');
     });
 
-    it('draws the unread marker as a 7 px round dot in the green of the theme kind, centred on the capitals, standing still', () => {
+    it('draws the unread marker as a 7 px round dot in the theme brand colour, centred on the capitals, standing still', () => {
       const unread = markerRule(TAB_UNREAD_CLASS);
       expect(unread).toMatch(/content: '';/);
       expect(unread).toMatch(/width: 7px;/);
       expect(unread).toMatch(/height: 7px;/);
       expect(unread).toMatch(/vertical-align: calc\(\(1cap - 7px\) \/ 2\);/);
-      expect(unread).toMatch(
-        /background-color: var\(--jp-AdvancedHtml-unread\);/
-      );
+      expect(unread).toMatch(/background-color: var\(--jp-brand-color1\);/);
       expect(unread).toMatch(/border-radius: 50%;/);
       expect(unread).toMatch(/forced-color-adjust: none;/);
       expect(unread).not.toContain('animation');
-      expect(stylesheet).toMatch(
-        /:root \{\n {2}--jp-AdvancedHtml-unread: #116329;\n\}/
-      );
-      expect(stylesheet).toMatch(
-        /body\[data-jp-theme-light='false'\] \{\n {2}--jp-AdvancedHtml-unread: #66bb6a;\n\}/
-      );
+      expect(stylesheet).not.toContain('--jp-AdvancedHtml-unread');
+      expect(stylesheet).not.toContain('#116329');
+      expect(stylesheet).not.toContain('#66bb6a');
     });
   });
 

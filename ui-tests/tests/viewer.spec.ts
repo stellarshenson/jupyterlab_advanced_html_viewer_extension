@@ -1190,7 +1190,7 @@ test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, u
     timeout: 6000
   });
   // Two looks without a change, and nobody has looked: a filled round dot,
-  // standing still, in the green of a light theme.
+  // standing still, in the theme's brand colour.
   await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/, {
     timeout: 10000
   });
@@ -1198,13 +1198,19 @@ test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, u
     .locator('.lm-TabBar-tabLabel')
     .evaluate((label: Element) => {
       const style = getComputedStyle(label, '::before');
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--jp-brand-color1)';
+      document.body.appendChild(probe);
+      const brand = getComputedStyle(probe).color;
+      probe.remove();
       return {
         content: style.content,
         animation: style.animationName,
         width: style.width,
         height: style.height,
         radius: style.borderRadius,
-        colour: style.backgroundColor
+        colour: style.backgroundColor,
+        brand
       };
     });
   expect(unread).toEqual({
@@ -1213,8 +1219,10 @@ test('ACC-LIVE-79 shows the unread marker for changes on a tab behind another, u
     width: '7px',
     height: '7px',
     radius: '50%',
-    colour: 'rgb(17, 99, 41)'
+    colour: expect.any(String),
+    brand: expect.any(String)
   });
+  expect(unread.colour).toBe(unread.brand);
   // Past the eight seconds a tab in front keeps its marker: behind, it waits.
   await page.waitForTimeout(9000);
   await expect(tab).toHaveClass(/jp-AdvancedHtml-tabUnread/);
