@@ -174,6 +174,43 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - test-tags: FUNCTIONAL
   - log: 2026-10-19T12:41:36Z @kj added
   - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
+- [x] `ACC-VIEW-95-HISTORY` **Trusted page may change its address** - HIGH; setting trustedHistory, on by default: on a trusted page, history.pushState and replaceState to a URL inside the file, a hash or the file's own address, succeed and set location.hash; a URL to another file is refused as before; off keeps the browser's refusal; no sandbox token is added
+  - evidence: 1.0.62 full Galata 122/122: history.spec deck hash #2, setting off refuses, live toggle, untrusted page no script; Jest render.spec address mapping; SANDBOX unchanged
+  - related: DEF-VIEW-46-HISTORY
+  - test: Galata: a trusted deck whose key press runs replaceState('#2') then adds a class shows no page error, hash #2 and the class; setting off shows the SecurityError; an untrusted page carries no added script
+  - test-tags: FUNCTIONAL, UNIT
+  - mechanism: 2026-10-23T08:17:40Z @kj only on a trusted page with the setting on, the page gets a script before its first script that wraps pushState and replaceState and sends a URL inside the file to the frame's blob: URL with the same hash
+  - log: 2026-10-23T08:17:40Z @kj added; reason: the criterion names the setting, its default, the allowed and refused URLs and the sandbox bound
+  - log: 2026-10-24T03:23:39Z @kj closed
+  - log: 2026-10-24T03:23:54Z @kj edited evidence "1.0.62 full Galata 122/122: history.spec ACC-VIEW-95 deck hash #2, setting off refuses, live toggle, untrusted page no script; Jest render.spec DEF-VIEW-46 address mapping; SANDBOX unchanged" -> "1.0.62 full Galata 122/122: history.spec deck hash #2, setting off refuses, live toggle, untrusted page no script; Jest render.spec address mapping; SANDBOX unchanged"; reason: evidence named ids without their code
+- [x] `ACC-VIEW-96-ICON` **Full screen icon as large as its neighbours** - MEDIUM; the four corners of the full-screen toolbar icon are drawn as large as the glyph of the Rerender HTML Document icon beside it, within 1 px, where they now fill about 9 of the 16 px box; colour and click unchanged
+  - evidence: 1.0.62 full Galata 122/122: history.spec:218 corner box within 1 px of the refresh glyph; renders toolbar-light.png and toolbar-dark.png inspected
+  - related: ACC-VIEW-88
+  - test: Galata: in the viewer toolbar the bounding box of the full-screen icon's path is within 1 px of the Rerender icon's path in width and height; render light and dark
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-24T03:23:44Z @kj the icon's viewBox is 1.5 1.5 21 21, the extent of the refresh glyph, so the 16 px box draws the corners as large as that glyph
+  - log: 2026-10-23T08:20:27Z @kj added
+  - log: 2026-10-24T03:23:39Z @kj edited test-tags "FUNCTIONAL, UNIT" -> "FUNCTIONAL"; reason: no unit test covers the icon; the Galata box test does
+  - log: 2026-10-24T03:23:44Z @kj mechanism updated "2026-10-23T08:20:27Z @kj the icon's viewBox is cut to the corners' extent, so the 16 px box scales the corners up" -> "the icon's viewBox is 1.5 1.5 21 21, the extent of the refresh glyph, so the 16 px box draws the corners as large as that glyph"
+  - log: 2026-10-24T03:23:44Z @kj closed
+- [x] `ACC-VIEW-97-INFO` **More info beside trust says what the page asks for** - HIGH; a More info link beside Trust HTML and the Always trust box opens a dialog read from the file without running it: what trust allows (scripts run, pop-ups open, scripts can read and change the lab with your access), the inline script count and each script file's address, every other host it loads from, and the browser features named in its inline script text, marked as found by text search
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): trust-info.spec:75, :125 srcdoc, javascript: link and SVG script, :150 trusted page; Jest 398/398: trust-info.spec 12 cases; renders dialog-light/dark.png inspected
+  - related: ACC-VIEW-90
+  - test: Jest: the listing of a fixture page names its scripts, hosts and features; Galata: the link opens the dialog on an untrusted and a trusted page, the frame has no allow-scripts before trust, render light and dark
+  - test-tags: FUNCTIONAL, UNIT
+  - mechanism: 2026-10-23T08:24:36Z @kj the dialog reads the file text the viewer already parses; no script runs and the sandbox does not change
+  - log: 2026-10-23T08:24:36Z @kj added; reason: the criterion lists the four parts of the dialog the user chose
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-VIEW-98-KEEP` **Always trust survives a rewrite that drops the line** - HIGH; while the Always trust box is checked in an open view, a change from disk whose text holds no trust value gets this lab's signature of the path written back and the box stays checked; a text with another trust value is left as written and the box clears; a failed write-back clears the box
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): trust-keep.spec:155, :198, :258 refused signature and refused write clear the box, :284 write-back after a late notes read
+  - related: DEF-VIEW-49-KEEP
+  - related: ACC-VIEW-90
+  - test: Galata trust-keep.spec, the cases for DEF-VIEW-49-KEEP: a rewrite without the settings line gets the same signature back and the box never clears; another lab's value clears the box, file byte for byte as written; a refused write clears the box
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-23T10:10:55Z @kj _checkRemembered emits trustChosen(true) when the box was checked, the page is trusted and the clean text holds no trust value; the notes controller writes the signature through its existing write path
+  - log: 2026-10-23T10:10:55Z @kj added; reason: the criterion names the write-back, the other-value case and the failure case the user's decision implies
+  - log: 2026-10-23T10:11:09Z @kj edited test "Galata trust-keep.spec 'DEF-VIEW-49': a rewrite without the settings line gets the same signature back and the box never clears; another lab's value clears the box, file byte for byte as written; a refused write clears the box" -> "Galata trust-keep.spec, the cases for DEF-VIEW-49-KEEP: a rewrite without the settings line gets the same signature back and the box never clears; another lab's value clears the box, file byte for byte as written; a refused write clears the box"; reason: test line named the defect without its code
+  - log: 2026-10-24T06:50:23Z @kj closed
 
 ## Following the file `LIVE`
 
@@ -292,6 +329,62 @@ Loading a change another process writes to the file into the open viewer
   - log: 2026-10-13T13:34:27Z @kj added
   - log: 2026-10-13T13:39:17Z @kj closed
   - log: 2026-10-13T14:18:38Z @kj amended text "with one file open in two views, a change puts the marker on both tabs, each tab deciding the sun by whether it was in front; the file is looked at once for both views, and the remaining view goes on following when one closes" -> "with one file open in two views, a change puts the marker on both tabs, each tab deciding its unread marker by whether it was in front; the file is looked at once for both views, and the remaining view goes on following when one closes"
+- [x] `ACC-LIVE-99-SETTINGS` **Three change settings, on by default** - HIGH; settings Enabled (enabled), Animate changes (animation) and Highlight changes (highlight), boolean, default true, with the Markdown viewer's descriptions, preview read as page; a change of any of them acts on every open viewer at once, without reopening
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:797 animation off mid-typing completes next frame; Jest 398/398: live.spec:159 schema keys, titles, descriptions, defaults
+  - test: Jest: the schema declares the three keys, titles, descriptions and defaults; Galata: Animate changes switched off while a change types completes it on the next frame
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:29Z @kj added
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-100-FOLLOW-OFF` **Following the file can be switched off** - HIGH; Enabled off: the file is not looked at and the page changes only on Rerender; a lab edit still renders after 1 s; marks and notes work; a running animation completes at once and its highlights and the tab marker leave; on again, the file is looked at at once
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:767 Enabled off leaves the page, Rerender and Enabled on show the change; Jest 398/398: follow.spec:134
+  - test: Galata: with Enabled off a change on disk leaves the page for 5 s and Rerender shows it; Enabled on again shows it within 4 s
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-24T03:53:29Z @kj added
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-101-IN-PLACE` **A change on disk applies to the page in place** - CRITICAL; a change of body text, a body element added or removed, or an attribute changed applies without loading the page: the frame's window stays the same object, the fragment and the scroll stay, the page is fitted again at the end; the first character shows within 4 s of the write
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:139 same frame window, hash and scrollY kept, new text shown; red on 1.0.62
+  - related: ACC-LIVE-11
+  - test: Galata live.spec: across a change on disk the frame window is the same object, location.hash and scrollY are kept and the new text shows
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-10-24T03:53:29Z @kj parse5 trees of the old and new file text are diffed element by element; live nodes are found through PageMap; data-jp-ahv numbers are rewritten to the new file's order; the lab writes the page from its own realm
+  - log: 2026-10-24T03:53:29Z @kj added; reason: the criterion names every case of the design in tmp/workflows/animation-survey/20-design.md
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-102-FALLBACK` **A change the page cannot take in place renders it again** - HIGH; a change in head, of the doctype, in raw text, in or of script, style, link, meta, base, template, svg, math, iframe, object, embed, frame, source or track, a parent past 1000 tokens, one that could trust the page, or one where a script changed the page: today's render, scroll and fragment carried, the added file text tinted, nothing typed
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:525 style change loads a new page, added text tinted; Jest 398/398: patch.spec 13 render reasons and 3 tint cases
+  - test: Jest patch.spec: one case per reason answers render; Galata: a style change loads a new page and tints the added text
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:29Z @kj added; reason: the criterion names every case of the design in tmp/workflows/animation-survey/20-design.md
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-103-SCRIPT-CONTENT` **What a trusted page's scripts made is never animated** - HIGH; text and elements a script made or changed are never typed, deleted or tinted; a change at a place a script changed renders the page again
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:554 script-written counter keeps its text and takes no tint; Jest 398/398: patch.spec:144, :179
+  - test: Galata: on a trusted page with a script-written counter, a change beside it types in while the counter keeps its text and takes no tint
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-24T03:53:30Z @kj added
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-104-READER-PLACE` **The reader's place holds while a change above types in** - HIGH; scrolled 400 px, a paragraph added or removed above the view: the line at the top of the view moves no more than 1 px in any frame
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:601 top line moves no more than 1 px per frame while a paragraph above types in and is deleted; red on 1.0.62 moved 34 px
+  - test: Galata live.spec: the top line's offset recorded every frame while a paragraph above types in, and while one is deleted
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-24T03:53:30Z @kj added
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-105-HIDDEN-TAB` **A change behind another tab applies as in front** - MEDIUM; a change on a tab behind another applies in place, timed on the wall clock; brought to the front after the highlight's life, the text is new and untinted and the unread dot stands
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:658 change behind another tab, back after the life: new text, untinted, dot shows
+  - test: Galata live.spec: a change while another tab is in front; back after the life the text is new, untinted, and the dot shows
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-24T03:53:30Z @kj added
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-106-LAB-EDIT` **An edit in the lab is not animated** - MEDIUM; an edit in an editor of the same file renders after 1 s as today, with no highlight; only a change the follower loads from disk applies in place
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:689 editor edit renders, no change highlight; Jest 398/398: live.spec:213, red under mutation
+  - test: Jest: the viewer goes in place only for a follower load; Galata: after an editor edit the page shows it and no change highlight is set
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:30Z @kj added
+  - log: 2026-10-24T06:50:21Z @kj closed
+- [x] `ACC-LIVE-107-AS-LOAD` **Page after a change equals a fresh load** - CRITICAL; once the animation ends, the body's elements, attributes (data-jp-ahv included) and the text of each element equal a render of the new file, comments and the split of text into nodes aside; every mark is anchored as after a render
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:720; Jest 398/398: patch.spec 58 generated cases equal a fresh stamped page, animate.spec 111 animated cases end equal
+  - test: Jest patch.spec: generated cases (text, nested inline, lists, table rows, entities, pre, attributes) end equal to a fresh parse of the new file; Galata: a mark on an unchanged paragraph stays anchored
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:50Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
 
 ## Where text comes from `ORIGIN`
 
@@ -736,4 +829,84 @@ Verdicts of adversarial review on the behaviour and the architecture of a change
   - log: 2026-10-13T14:33:41Z @kj closed; reason: quotes the status, the counts per round and both verdict lines of the architect lens
   - log: 2026-10-13T14:40:16Z @kj edited evidence "review of 2026-10-13, artefacts tmp/adv-review/2026-10-13b/round1-result.json to round3-result.json: status SHIP in round 3; findings 5, 1 and 1 per round, 2 planned changes applied, 0 changes in the last round, 0 deferred; architect lens: 'ARCHITECTURE: SOUND - one follower per document raises loaded and looked, each view's cue derives its whole state from those two signals plus the widget's after-show message, and every marker reaches the tab only through title.className and title.caption'; 'OVER-ENGINEERED: NO - every construct in the applied delta and in the cue, follower hold and release, and tabCue setting path traces to a criterion or defect named in the scope'" -> "review of 2026-10-13, artefacts tmp/adv-review/2026-10-13b/round1-result.json to round4-result.json: status SHIP in round 3 and again in round 4; findings 5, 1, 1 and 0 per round, 2 planned changes applied, 0 changes in rounds 3 and 4, 0 deferred; architect lens, round 4: 'ARCHITECTURE: SOUND - one follower per document is the only timer and raises two signals, the cue is a state holder that writes only widget.title.className and widget.title.caption'; 'OVER-ENGINEERED: NO - each construct in the tab marker subsystem traces to a criterion, a defect or a locked decision named above, and none can be deleted without breaking one'"; reason: round 4 confirmed the last comment edit with no finding; quotes the status, the counts per round and both verdict lines of the architect lens
   - log: 2026-10-13T15:13:49Z @kj edited evidence "review of 2026-10-13, artefacts tmp/adv-review/2026-10-13b/round1-result.json to round4-result.json: status SHIP in round 3 and again in round 4; findings 5, 1, 1 and 0 per round, 2 planned changes applied, 0 changes in rounds 3 and 4, 0 deferred; architect lens, round 4: 'ARCHITECTURE: SOUND - one follower per document is the only timer and raises two signals, the cue is a state holder that writes only widget.title.className and widget.title.caption'; 'OVER-ENGINEERED: NO - each construct in the tab marker subsystem traces to a criterion, a defect or a locked decision named above, and none can be deleted without breaking one'" -> "review of 2026-10-13, artefacts tmp/adv-review/2026-10-13b/round1-result.json to round5-result.json: status SHIP in rounds 3, 4 and 5; findings 5, 1, 1, 0 and 0 per round, 2 planned changes applied, 0 changes in rounds 3 to 5, 0 deferred; architect lens, round 5: 'ARCHITECTURE: SOUND - one follower per document raises loaded and looked, the cue derives every marker state from those two signals plus the after-show message in one _update method with no timer of its own'; 'OVER-ENGINEERED: NO - every construct I read in src/cue.ts, the interval guard in src/follow.ts and the marker rules in style/base.css answers a locked decision or a guarantee of the bar'"; reason: rounds 4 and 5 confirmed the later edits with no finding; quotes the status, the counts per round and both verdict lines of the architect lens
+
+## Change animation `ANIM`
+
+Typing in and deleting a change on disk in the open page, as the advanced Markdown viewer does
+
+- log: 2026-10-24T03:53:50Z @kj category created
+
+- [x] `ACC-ANIM-108-TYPE-IN` **Added text is typed in** - CRITICAL; letter by letter at 75 characters per second on average; each character takes 1000/75 ms times (1 + 0.25 x r), r drawn from -1 to 1 once per character and shared by all runs; distant changes type at the same time
+  - evidence: Jest 398/398: animate.spec:145 fake clock, 60 characters under 1.1 s, jitter bounds, concurrent runs; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:197 part typed, then whole; render live-typing-light.png
+  - test: Jest animate.spec with a fake clock: 60 characters in under 1.1 s, the jitter bounds, two paragraphs at the same time; Galata: a sentence shows part typed, then whole
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:50Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-ANIM-109-DELETE` **Removed text warns, then is deleted from its end** - CRITICAL; removed text stands whole for 750 ms while its red rises over 500 ms and its strike over 250 ms, then loses its characters from the last at the same speed; added text beside it types meanwhile
+  - evidence: Jest 398/398: animate.spec:197 hold 750 ms then delete from the end beside typing; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:219
+  - test: Jest animate.spec: holds 750 ms, then deletes from the end beside the typing; Galata: the removed sentence is whole and struck at 0.6 s, shorter later, gone at the end
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:50Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-ANIM-110-REMOVE-ELEMENT` **A removed element loses its text first, then its tags, innermost first** - HIGH; its text is deleted from its end backward; each element is taken out the moment it holds no text, so an inner element goes before the one around it and the removed element goes last; an element with no text, such as img or br, goes when the deletion reaches it; a removed element holding no text at all goes when the change applies
+  - evidence: Jest 398/398: animate.spec:217 b out before li, li before ul; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:256 text, then item, then list; render live-removing-dark.png
+  - test: Jest animate.spec: the DOM at each step shows b taken out before li and li before ul; Galata: a removed list item's text goes, then the item, then the list
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:50Z @kj added; reason: the user asked for this order; the criterion names each kind of element
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-ANIM-111-COARSE` **A change too large to follow lands at once** - MEDIUM; an added run or a removal over 1000 tokens (a word or a run of white space) lands at once, tinted, with no hold; smaller changes in the same write still type
+  - evidence: Jest 398/398: animate.spec:305 a run over 1000 tokens lands at once while a short one types
+  - test: Jest animate.spec: a run over 1000 tokens lands at once while a short one types
+  - test-tags: UNIT
+  - log: 2026-10-24T03:53:51Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-ANIM-112-WRITE-AGAIN` **A write during an animation completes it, then animates the new one** - HIGH; the untyped rest of the running change lands at once and a waiting removal goes at once; nothing is typed twice; the new change then animates; the earlier highlights stay and drain with the new ones
+  - evidence: Jest 398/398: animate.spec:325; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:353 two writes 1 s apart end equal to the second file
+  - test: Jest animate.spec: completes the running runs, then types the new change; Galata live.spec: two writes 1 s apart end equal to the second file
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:51Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-ANIM-113-ANIM-OFF` **Animation off shows a change at once** - HIGH; Animate changes off: a change lands whole on the first frame, tinted; removed text stands whole, tinted and struck, and goes when its highlight has drained; runs in progress complete on the next frame; the system's reduced-motion preference is not read
+  - evidence: Jest 398/398: animate.spec:357; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:828 off shows whole change at once, :854 reduced motion emulated still types
+  - test: Jest: lands the change at once when the animation is off; Galata: with Animate changes off the whole change shows at once, and with reduced motion emulated and the setting on it types
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:51Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-ANIM-118-ADD-ELEMENT` **An added element is inserted empty and typed in, outermost first** - HIGH; it is inserted with its attributes and no content; its text is typed in document order and each inner element is inserted empty when the typing reaches it; an element with no text is inserted when reached; an added element holding no text at all is inserted when the change applies
+  - evidence: Jest 398/398: animate.spec:269 ul, li, text, then b; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:315 empty item with its bullet before its text
+  - test: Jest animate.spec: ul inserted, then li, then the text typed, then b inserted; Galata: an added list item shows its bullet empty before its text
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:56Z @kj added; reason: the user asked for the element order; the criterion names each kind of element
+  - log: 2026-10-24T06:50:22Z @kj closed
+
+## Change highlighting `HILITE`
+
+Showing what a change on disk added and removed, as the advanced Markdown viewer does
+
+- log: 2026-10-24T03:53:51Z @kj category created
+
+- [x] `ACC-HILITE-114-COLOURS` **Added text on green, removed text on red and struck** - CRITICAL; painted through the CSS Custom Highlight API, with no element added to the page for it; added text on the lab theme's var(--jp-success-color1) at 35 percent, removed text on var(--jp-error-color1) at 31 percent and struck through
+  - evidence: Jest 398/398: animate.spec:401, :424; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:458 computed colours under Light and Dark from --jp-success-color1 and --jp-error-color1, no element added
+  - test: Jest: the rules name the two theme colours at their strengths; Galata: computed highlight colours under JupyterLab Light and Dark, and the page holds no element the file does not
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:51Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-HILITE-115-FADE` **Highlights rise, stand and drain** - HIGH; each change's highlight rises from transparent over 500 ms, stands, and drains over the last 750 ms of a life of typing time plus 5000 ms plus 500 ms; a change during the life adds its highlights and all drain together after the last
+  - evidence: Jest 398/398: animate.spec:448, :521 rise, stand, drain at given times, bounded stacking; 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:496
+  - test: Jest with a fake clock: the alpha at 0, 250, 500 ms, mid-life and in the drain; a second change extends the life; Galata: still tinted at 3 s, none at the end of the life
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:51Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-HILITE-116-HILITE-OFF` **Highlighting can be switched off** - HIGH; Highlight changes off: no change highlight is painted and a running one ends at once; changes still apply and animate; the tab marker keeps working
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): live.spec:879 change types in, no change highlight name; Jest 398/398: animate.spec:555
+  - test: Galata: with Highlight changes off a change types in and CSS.highlights holds no change name
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-24T03:53:51Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
+- [x] `ACC-HILITE-117-MARKS-KEPT` **Marks stay painted through a change** - MEDIUM; marks on unchanged text keep their colour while a change animates; the notes panel is matched again once, within 200 ms of the animation's end, not during it
+  - evidence: 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): marks.spec:249 mark stays painted while a paragraph above types in; Jest 398/398: notes.spec:261 one rematch on settle, live.spec:307
+  - test: Jest notes.spec: rematches once when the change settles; Galata marks.spec: a mark stays painted while a paragraph above types in
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-24T03:53:51Z @kj added
+  - log: 2026-10-24T06:50:22Z @kj closed
 

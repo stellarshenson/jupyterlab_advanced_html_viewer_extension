@@ -392,7 +392,7 @@ test('ACC-VIEW-90 on a read-only file the box stays clear and shows no save erro
   }
 });
 
-test('ACC-VIEW-90 two views keep one remembered state and a change from disk clears it', async ({
+test('ACC-VIEW-90 two views keep one remembered state, which a change from disk keeps or clears', async ({
   page,
   tmpPath
 }) => {
@@ -424,8 +424,20 @@ test('ACC-VIEW-90 two views keep one remembered state and a change from disk cle
   await tabs.nth(0).click();
   await expect.poll(checked).toEqual([true, true]);
 
-  // A change from disk without the marker clears both boxes.
+  // A change from disk without the marker keeps both boxes, and one
+  // signature is written back (DEF-VIEW-49).
+  const signature = trustIn(file);
   writeFile(file, SCRIPTED);
+  await expect.poll(() => trustIn(file), { timeout: 10000 }).toBe(signature);
+  await page.waitForTimeout(2000);
+  expect(fileText(file).match(/marks:settings/g)).toHaveLength(1);
+  expect(await checked()).toEqual([true, true]);
+
+  // A change from disk with another lab's value clears both boxes.
+  writeFile(
+    file,
+    `${SCRIPTED}<!-- marks:settings trust=${'b'.repeat(64)} -->\n`
+  );
   await expect.poll(checked, { timeout: 10000 }).toEqual([false, false]);
   await expect(alwaysTrustBox(page).first()).not.toBeChecked();
 });
@@ -642,6 +654,84 @@ test("ACC-VIEW-89 right-click in full screen opens the browser's menu", async ({
   );
 });
 
+for (const key of ['Enter', 'Space']) {
+  test(`DEF-VIEW-52 ${key} on Trust HTML, reached with the keyboard, trusts the page once`, async ({
+    page,
+    tmpPath
+  }) => {
+    const file = fixture(tmpPath, `trust-${key.toLowerCase()}`);
+    writeFile(file, SCRIPTED);
+    await openViewer(page, file, 'Text written in the file.');
+    await page.evaluate(() => {
+      const w = window as any;
+      w.chosen = 0;
+      w.jupyterapp.shell.currentWidget.trustChosen.connect(() => w.chosen++);
+    });
+    // The toolbar is one tab stop: Tab reaches one of its buttons, here
+    // Rerender, and the arrow keys move between them.
+    const toolbar = page.locator(`${SHOWN} .jp-Toolbar`);
+    await toolbar.locator('[title="Rerender HTML Document"]').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      toolbar.getByRole('button', { name: 'Trust HTML', exact: true })
+    ).toBeFocused();
+    await page.keyboard.press(key);
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => (window as any).chosen)).toBe(1);
+    await expect(
+      toolbar.getByRole('button', { name: 'Distrust HTML', exact: true })
+    ).toBeVisible();
+    await waitForText(page, 'Written by a script.');
+    expect(await sandboxShown(page)).toContain('allow-scripts');
+  });
+}
+
+test('DEF-VIEW-52 Enter on Rerender HTML Document renders the page once', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'rerender-enter');
+  writeFile(file, '<!DOCTYPE html>\n<p>The page.</p>\n');
+  await openViewer(page, file, 'The page.');
+  await watchLoads(page);
+  await page
+    .locator(`${SHOWN} .jp-Toolbar [title="Rerender HTML Document"]`)
+    .focus();
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(() => page.evaluate(() => (window as any).loads.length))
+    .toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => (window as any).loads.length)).toBe(1);
+  await waitForText(page, 'The page.');
+});
+
+test('DEF-VIEW-52 Enter on the full-screen button asks for full screen once', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'full-screen-enter');
+  writeFile(file, '<!DOCTYPE html>\n<p>The page on the whole screen.</p>\n');
+  await openViewer(page, file, 'The page on the whole screen.');
+  await page.evaluate((selector: string) => {
+    const w = window as any;
+    const frame = document.querySelector(selector) as HTMLIFrameElement;
+    const request = frame.requestFullscreen.bind(frame);
+    w.fullScreenAsks = 0;
+    frame.requestFullscreen = (options?: FullscreenOptions) => {
+      w.fullScreenAsks++;
+      return request(options);
+    };
+  }, `${SHOWN} iframe`);
+  await fullScreenButton(page).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => (window as any).fullScreenAsks)).toBe(1);
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(true);
+  await page.evaluate(() => document.exitFullscreen());
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(false);
+});
+
 test('ACC-VIEW-5 Refresh renders the file again', async ({ page, tmpPath }) => {
   const file = fixture(tmpPath, 'refresh');
   writeFile(
@@ -799,9 +889,13 @@ test('ACC-VIEW-77 leaves the page undisturbed while its tab is behind another', 
   expect(await heard()).toEqual([]);
   expect(await inFrame<number>(page, 'return win.scrollY;')).toBe(400);
 
-  // A change on disk while the tab is behind: the page loads in a window
-  // that has its size, at the place the reader left.
-  writeFile(file, `<!DOCTYPE html>\n${long}\n<p>Added at the end.</p>\n`);
+  // A change on disk while the tab is behind, of the head, which the page
+  // cannot take in place (ACC-LIVE-101): the page loads in a window that has
+  // its size, at the place the reader left.
+  writeFile(
+    file,
+    `<!DOCTYPE html>\n<title>Behind</title>\n${long}\n<p>Added at the end.</p>\n`
+  );
   await expect
     .poll(() => inFrame<string>(page, 'return doc.body.textContent;'), {
       timeout: 8000
@@ -1290,6 +1384,8 @@ test('ACC-LIVE-80 says in the tab tooltip what the marker means, above the toolt
   );
   // In front the marker leaves, and the tooltip is the document's own again.
   await tab.click();
+  // A lab extension may hold the title attribute back while a tab is hovered.
+  await page.mouse.move(0, 0);
   await expect(tab).toHaveAttribute('title', /^Name: words\.html\n/, {
     timeout: 10000
   });

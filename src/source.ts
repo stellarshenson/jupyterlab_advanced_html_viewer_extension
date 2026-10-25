@@ -38,7 +38,7 @@ export const STAMP = 'data-jp-ahv';
  * Elements whose text the page does not show as text: a marker written into
  * it would be shown or run, so none of their text takes a mark.
  */
-const RAW_TEXT = new Set([
+export const RAW_TEXT = new Set([
   'script',
   'style',
   'textarea',
@@ -81,6 +81,13 @@ export interface IStaticElement {
    * follows, null for the run before the first element child.
    */
   runs: Map<IStaticElement | null, IRun>;
+  /**
+   * The parsed element, for its attributes and the text of a raw text element.
+   * shortcut: it keeps the parse5 tree, script text and attribute values
+   * included, for as long as the reading is kept; keep only what the change
+   * compares if a page of megabytes shows the memory.
+   */
+  node: P5Element;
 }
 
 /**
@@ -119,7 +126,7 @@ export interface IPageOptions {
   scripting: boolean;
   /** The address relative addresses resolve against; null for none. */
   base: string | null;
-  /** Markup the page carries at the end of its head, such as a style. */
+  /** Markup the page carries at the start of its head, such as a style. */
   extra: string;
 }
 
@@ -258,7 +265,7 @@ function childrenOf(node: P5Node): P5Node[] {
 }
 
 /** Every element under a node, template content included, in document order. */
-function* allElements(node: P5Node): Generator<P5Element> {
+export function* allElements(node: P5Node): Generator<P5Element> {
   for (const child of childrenOf(node)) {
     if ('tagName' in child) {
       yield child as P5Element;
@@ -443,7 +450,8 @@ export function analyse(
       stamp: number ? Number(number.value) : null,
       parent,
       children: [],
-      runs: new Map()
+      runs: new Map(),
+      node
     };
     analysis.elements.push(element);
     parent?.children.push(element);

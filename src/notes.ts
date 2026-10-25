@@ -205,6 +205,7 @@ export class NotesController implements IDisposable {
     document.body.appendChild(this._tooltip);
 
     this._viewer.pageLoaded.connect(this._onPage, this);
+    this._viewer.changeSettled.connect(this._onSettled, this);
     this._viewer.trustChosen.connect(
       (_, trusted) => void this.setTrust(trusted),
       this
@@ -312,15 +313,17 @@ export class NotesController implements IDisposable {
     });
     const selected = record.result.span;
     const written = await this._write(source => {
-      // The write loaded a change waiting on disk first. While the page on
-      // screen is still the page of the text, the range is read again, which
-      // follows markers the change brought; otherwise the span is carried
-      // across the change, unless the change reached the passage.
-      const result = this._map?.selection(record.range);
+      // The write loaded a change waiting on disk first. Where the page map
+      // was built for the text written, the range is read again, which
+      // follows markers the change brought; otherwise, as while a change
+      // applied in place animates, the span is carried across the change,
+      // unless the change reached the passage.
+      const map = this._map?.analysis.source === source ? this._map : null;
+      const result = map?.selection(record.range);
       const span =
         result && 'span' in result
           ? result.span
-          : this._map
+          : map
             ? null
             : carrySpan(record.source, source, selected);
       return span ? markEdits(span, opening, serialiseClosing(id)) : [];
@@ -494,7 +497,8 @@ export class NotesController implements IDisposable {
    * path while the page is trusted, nothing once it is not. Where the file
    * cannot be written or the server gives no signature, the trust holds for
    * this session only, and a signature that arrives after the reader changed
-   * their choice is dropped.
+   * their choice is dropped. A signature that does not reach a file holding
+   * no trust value clears the Always trust box.
    */
   async setTrust(trusted: boolean): Promise<void> {
     if (this._viewer.context.contentsModel?.writable === false) {
@@ -506,17 +510,30 @@ export class NotesController implements IDisposable {
           this._viewer.context.localPath
         )
       : null;
-    if (
-      (trusted && !trust) ||
-      trust === this._trust ||
-      this._disposed ||
-      this._viewer.trusted !== trusted
-    ) {
+    if (this._disposed || this._viewer.trusted !== trusted) {
+      return;
+    }
+    // Read a change whose frame has not run, as in a tab the browser does not
+    // show: the trust read before it may be a signature it took out
+    // (ACC-VIEW-98).
+    this._flush();
+    if (trusted && !trust) {
+      // No signature to write: a file that holds no trust value clears the
+      // box (ACC-VIEW-98).
+      if (this._trust === null) {
+        this._viewer.setRemembered(false);
+      }
+      return;
+    }
+    if (trust === this._trust) {
       return;
     }
     this._trust = trust;
-    if (await this._writeSettings(this._trust)) {
+    if (await this._writeSettings(this._trust).catch(() => false)) {
       this._viewer.setRemembered(this._trust !== null, this._trust);
+    } else if (trusted) {
+      // The signature did not reach the file: the box clears (ACC-VIEW-98).
+      this._viewer.setRemembered(false);
     }
   }
 
@@ -615,6 +632,22 @@ export class NotesController implements IDisposable {
     this._read();
   }
 
+  /**
+   * A change applied in place has settled: match the page once, now that it
+   * reads as the file (ACC-HILITE-117). The match waits for a microtask, so it
+   * comes after the page's mutation records of the last frame, and the wait
+   * they start is dropped.
+   */
+  private _onSettled(): void {
+    queueMicrotask(() => {
+      if (this._settle !== null) {
+        window.clearTimeout(this._settle);
+        this._settle = null;
+      }
+      this._flush();
+    });
+  }
+
   /** Listen to the page's events, and to changes its scripts make. */
   private _attach(page: IPage): void {
     const { window: win, document: doc } = page;
@@ -647,6 +680,25 @@ export class NotesController implements IDisposable {
         })
       );
     };
+    // A press in the page closes the lab's menus as a press anywhere else in
+    // the lab does: Lumino listens for it on the lab's document, which a press
+    // inside the frame never reaches (DEF-MARK-47).
+    const onPointerDown = (event: PointerEvent): void => {
+      const rect = this._viewer.frame.getBoundingClientRect();
+      this._viewer.frame.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          clientX: rect.left + event.clientX,
+          clientY: rect.top + event.clientY,
+          screenX: event.screenX,
+          screenY: event.screenY,
+          button: event.button,
+          buttons: event.buttons
+        })
+      );
+    };
     const onSelection = (): void => this._readSelection();
     const onKey = (event: KeyboardEvent): void => {
       const accel = /Mac/.test(navigator.platform)
@@ -672,6 +724,7 @@ export class NotesController implements IDisposable {
       }
     };
     win.addEventListener('contextmenu', onContextMenu, true);
+    win.addEventListener('pointerdown', onPointerDown, true);
     doc.addEventListener('selectionchange', onSelection);
     win.addEventListener('keydown', onKey, true);
     doc.addEventListener('mousemove', onMove);
@@ -697,6 +750,7 @@ export class NotesController implements IDisposable {
     this._detach = () => {
       observer.disconnect();
       win.removeEventListener('contextmenu', onContextMenu, true);
+      win.removeEventListener('pointerdown', onPointerDown, true);
       doc.removeEventListener('selectionchange', onSelection);
       win.removeEventListener('keydown', onKey, true);
       doc.removeEventListener('mousemove', onMove);
@@ -773,6 +827,15 @@ export class NotesController implements IDisposable {
    */
   private _rematch(always = true): void {
     if (this._disposed) {
+      return;
+    }
+    // A change applied in place leaves the page between two readings until
+    // it settles: the marks keep the ranges they are painted with, and no
+    // selection takes a mark meanwhile.
+    if (this._viewer.animating) {
+      this._mapStale = true;
+      this._selection = null;
+      this._showSelection();
       return;
     }
     const page = this._page;

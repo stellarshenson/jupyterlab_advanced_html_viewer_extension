@@ -103,6 +103,78 @@ The sandboxed frame, trust, refresh and rendering the page again
   - root-cause: 2026-10-19T12:41:50Z @kj chooseTrust increments _checkRun unconditionally, so a same-value click cancels the answer and _onSettled returns before rendering
   - log: 2026-10-19T12:41:50Z @kj added
   - log: 2026-10-19T13:32:43Z @kj closed: fixed and verified on 1.0.53
+- [x] `DEF-VIEW-46-HISTORY` **Trusted page cannot change its address** - MAJOR; a trusted page's history.replaceState or pushState to a hash or relative URL throws SecurityError; the script stops at that call, so a slide deck's show() never finishes the slide change and its animation
+  - evidence: 1.0.62 full Galata 122/122: history.spec:69 trusted deck replaceState('#2') no SecurityError; Jest render.spec address mapping cases
+  - related: ACC-VIEW-95-HISTORY
+  - repro: trust a page whose script runs history.replaceState(null, '', '#1'); the console shows SecurityError and location.hash stays empty
+  - test-tags: FUNCTIONAL, UNIT
+  - root-cause: 2026-10-23T08:17:40Z @kj the frame loads a blob: URL whose <base href> is the file's https URL; '#1' resolves against the base to the https URL, and the browser refuses a history URL that differs from the document's blob: URL, as the error text states
+  - log: 2026-10-23T08:17:40Z @kj added
+  - log: 2026-10-24T03:23:39Z @kj closed
+- [x] `DEF-VIEW-49-KEEP` **Always trust clears after the file changes** - MAJOR; with the Always trust box checked, a change another program writes to the file clears the box, so the file no longer opens trusted
+  - evidence: red on 1.0.61 trust-keep.spec:180 trust null; green in 1.0.62 full Galata 122/122, trust-keep.spec:155 plain and dcl, :198 other value, viewer.spec:395 two views
+  - related: DEF-LIVE-48-FOLLOW
+  - related: DEF-LIVE-50-JUMP
+  - related: ACC-VIEW-90
+  - repro: open a file with Always trust checked, write a change from outside the lab that drops the marks:settings line; the box clears
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-23T09:37:38Z @kj the outside write dropped the marks:settings line; the viewer wrote nothing after it (0 requests in 33 of 33 cases); _checkRemembered then finds no trust value and clears the remembered state, so the box clears while the page stays trusted
+  - root-cause: 2026-10-23T08:28:43Z @kj cause unknown; reproduce first; check whether the written text still holds the settings line with trust=, and whether the viewer writes the file after the change
+  - log: 2026-10-23T08:28:43Z @kj added
+  - log: 2026-10-23T09:37:38Z @kj root-cause overridden; reason: the reproduction proved the written text drops the line
+  - log: 2026-10-23T09:37:38Z @kj edited repro "open a file with Always trust checked, write a change from outside the lab that keeps the settings line; the box clears" -> "open a file with Always trust checked, write a change from outside the lab that drops the marks:settings line; the box clears"; reason: the line kept stays checked in 27 of 27 runs; only a dropped line clears it
+  - log: 2026-10-24T03:23:40Z @kj closed
+- [x] `DEF-VIEW-51-ATTACH` **Page that changes its hash before load loses marks and notes** - MAJOR; a trusted page whose script sets location.hash or replaceState('#n') at DOMContentLoaded is taken for a page a link led to: no marks, comments, fit or page theme
+  - evidence: red on 1.0.61 history.spec:199 viewerHoldsPage false; green in 1.0.62 full Galata 122/122, history.spec:176 and :69
+  - related: DEF-VIEW-46-HISTORY
+  - related: DEF-LIVE-50-JUMP
+  - repro: trust a page whose DOMContentLoaded handler sets location.hash = '#1'; viewer.page is null and the context menu has no Mark
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-23T08:56:03Z @kj _onLoad in src/viewer.ts compares the frame's location.href, fragment included, with the blob URL it loaded, so a fragment set before the load event fails the match; found by the bug-hunter review of the address change
+  - log: 2026-10-23T08:56:03Z @kj added
+  - log: 2026-10-24T03:23:39Z @kj closed
+- [x] `DEF-VIEW-52-ENTER` **Enter on Trust HTML trusts and distrusts in one press** - MEDIUM; pressing Enter on the focused Trust HTML button runs its action twice, so the page is trusted and distrusted at once and the keyboard cannot trust a page; Rerender and full screen also run twice
+  - evidence: red on 1.0.62 (logs/galata-followup-red.log, 2 runs); 1.0.64 full Galata 150/150 (logs/galata-live-full-2.log): viewer.spec:658 Enter and Space trust once, :689 Rerender once, :709 full screen once; render toolbar-focus-light.png
+  - repro: focus Trust HTML with Tab and press Enter; trustChosen is emitted 2 times and the label stays Trust HTML
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-23T09:57:16Z @kj ToolbarButtonComponent calls onClick from its onKeyDown for Enter and Space and again from the click the key makes (@jupyterlab/ui-components lib/components/toolbar.js:717-723 and :694-701); found by the trust-info implementation probe
+  - log: 2026-10-23T09:57:16Z @kj added
+  - log: 2026-10-24T06:50:23Z @kj closed
+- [x] `DEF-VIEW-53-FOREIGN` **A link to another site leaves the viewer stuck** - MAJOR; after a click on a link to another origin inside the page, Rerender, Trust, Distrust, following the file and closing the tab all throw SecurityError until browser Back or a lab reload; regression of the in-place change
+  - evidence: clear() runs before the try in _onLoad; Jest 403 of 403; full Galata suite 155 passed
+  - repro: page with <a href> to another origin; click it; rewrite the file or press Rerender; the tab does not render and does not close
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-24T07:22:54Z @kj _onLoad calls the old animator's clear() outside its try; clear() paints through the foreign window and throws, so _animator, _page and pageLoaded are never reset
+  - log: 2026-10-24T07:22:54Z @kj added
+  - log: 2026-10-25T00:28:26Z @kj closed
+- [x] `DEF-VIEW-54-TWO-VIEWS` **Distrust in one view is undone by the other view** - MAJOR; with a file open in two views and Always trust checked, Distrust or clearing the box in one view writes the trust line out, and within 1 s the other view writes the signature back, so the file opens trusted again
+  - evidence: the _fromDisk flag is read and reset at the top of _checkRemembered; Jest live.spec and Galata trust-keep green; full suite 155 passed
+  - repro: open a trusted file in two views with Always trust checked; clear the box in view A; after 2 s the file again holds the signature and view B's box is checked
+  - test-tags: UNIT, FUNCTIONAL
+  - root-cause: 2026-10-24T07:23:02Z @kj the ACC-VIEW-98-KEEP write-back reads a clean model as a change from disk; another view's route write and a lab save also leave the model clean
+  - log: 2026-10-24T07:22:54Z @kj added
+  - log: 2026-10-24T07:23:02Z @kj root-cause updated "2026-10-24T07:22:54Z @kj the ACC-VIEW-98 write-back reads a clean model as a change from disk; another view's route write and a lab save also leave the model clean" -> "the ACC-VIEW-98-KEEP write-back reads a clean model as a change from disk; another view's route write and a lab save also leave the model clean"
+  - log: 2026-10-25T00:28:26Z @kj closed
+- [x] `DEF-VIEW-57-INFO-ORDER` **More info lists the most serious consequence last** - MINOR; the dialog lists that the page's scripts can read and change the lab with the reader's access after scripts run and pop-ups; its inline-script definition leaves out the javascript: addresses it counts
+  - evidence: lab access first, javascript: addresses named; Galata trust-info.spec green; full suite 155 passed
+  - repro: open More info on any page; read the first part
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-24T07:22:55Z @kj added
+  - log: 2026-10-25T00:28:26Z @kj closed
+- [-] `DEF-VIEW-59-STREAM` **Write-back corrupts a file another process is still writing** - MAJOR; with Always trust checked, a writer that holds the file open and pauses over 1 s mid-page gets the signature written into the same file; its next write lands at its old offset, leaving marker bytes inside the page, such as <!<p>Line 8</p>; reproduced 6 of 6
+  - repro: Always trust checked; python writes half a page with open('w'), sleeps 3 s, writes the rest; the file differs from the writer's output (logs/galata-streaming.log)
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-24T08:05:49Z @kj the write-back fires on the settle 1 s after a follower load of the partial text; the route writes the same inode while the writer still holds it open at its offset
+  - log: 2026-10-24T08:05:49Z @kj added
+  - log: 2026-10-24T15:56:28Z @kj owner ruled: keep the write-back and state the limit in README beside Always trust; no code change
+  - log: 2026-10-25T00:28:33Z @kj rejected: rejected; reason: owner ruling 2026-10-24: keep the automatic write-back; README states the limit, a program holding the file open and pausing partway can get the trust line written into its page
+- [x] `DEF-VIEW-63-SECOND-UNTICK` **Galata read-only distrust test fails now and then after the second untick** - MINOR; ui-tests/tests/trust-race.spec.ts:353: after the second untick of Always trust on a read-only signed file, select finds no 'Text written in the file.' in the page; seen in 3 full runs (logs/galata-unread-dot-brand2.log, galata-live-full-1.log, readback-full.log), 25 of 25 alone; cause not yet known
+  - evidence: test defect the probe proved; the wait now requires the file text; trust-race.spec 10 of 10 (logs/advfix-r3-u1.log); full suite 155 passed
+  - repro: run the full Galata suite: the read-only distrust test of trust-race.spec.ts:302 fails at :353 in some full runs (3 seen since 2026-10-21), and passed 25 of 25 alone
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-24T19:31:38Z @kj added
+  - log: 2026-10-24T19:31:47Z @kj edited repro "run the full Galata suite on 1.0.67: the read-only distrust test of trust-race.spec.ts:302 failed 1 of 3 full runs at :353" -> "run the full Galata suite: the read-only distrust test of trust-race.spec.ts:302 fails at :353 in some full runs (3 seen since 2026-10-21), and passed 25 of 25 alone"; reason: repro count was wrong
+  - log: 2026-10-25T00:28:27Z @kj closed
 
 ## Where text comes from `ORIGIN`
 
@@ -161,6 +233,24 @@ Making, painting and opening marks in the rendered page
   - root-cause: 2026-09-28T19:15:21Z @kj Lumino runs a key binding only when isEnabled is true; markSelection is enabled only for file text (ACC-MARK-40), so markSelected and its notice never run
   - log: 2026-09-28T19:15:21Z @kj added
   - log: 2026-09-28T19:23:40Z @kj closed: fixed
+- [x] `DEF-MARK-47-MENU` **Lab menu stays open after a click in the page** - MEDIUM; right-click in the page opens the lab's context menu; a left click elsewhere in the page leaves the menu open over it
+  - evidence: red on 1.0.61 marks.spec:485 menus 1; green in 1.0.62 full Galata 122/122, marks.spec:473; render menu-closed.png shows no menu
+  - repro: right-click text in the page, then left-click another place in the page; the lab menu stays open
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-23T09:57:16Z @kj Lumino 2.9 Menu closes on a pointerdown its capture listener sees on the lab document; a press in the page is an event of the frame's document, so the lab document sees none; probe: pointerdown dispatched on the frame element closes the menu, mousedown does not
+  - root-cause: 2026-10-23T08:25:27Z @kj likely cause: Lumino's menu closes on a mousedown in the lab document; a click inside the frame is an event of the frame's document and never reaches it; onContextMenu in src/notes.ts forwards contextmenu only
+  - log: 2026-10-23T08:25:27Z @kj added
+  - log: 2026-10-23T09:57:16Z @kj root-cause overridden; reason: the probe confirmed the cause and corrected the event name
+  - log: 2026-10-24T03:23:39Z @kj closed
+- [x] `DEF-MARK-55-TYPING` **Mark and Add Comment are missing while a change types in** - MINOR; while a change from disk types in, the selection reads as none: the Mark submenu and Add Comment leave the right-click menu and Accel Shift M does nothing, with no message; with an agent writing every few seconds this lasts as long as it writes
+  - evidence: the listener finishes on pointerup and contextmenu; new Galata case marks.spec.ts:575 passed 10 of 10 (logs/advfix-r3-mark55-10.log); full suite 155 passed
+  - repro: select page text while a change from disk types in elsewhere; right-click: no Mark or Add Comment
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-24T07:22:54Z @kj _rematch returns with no selection while the viewer animates (notes.ts:835-839), because a half-typed page cannot be mapped to file offsets
+  - log: 2026-10-24T07:22:54Z @kj added
+  - log: 2026-10-24T15:56:28Z @kj owner ruled: fix; a press in the page while a change types in lands that change at once
+  - log: 2026-10-24T19:55:48Z @kj owner ruling 2026-10-24 (review round 3): land a typing change on pointerup and contextmenu instead of pointerdown, so a press over content below a change no longer moves it under the pointer; add a Galata case with the change above the selection
+  - log: 2026-10-25T00:28:26Z @kj closed
 
 ## Following the file `LIVE`
 
@@ -253,6 +343,59 @@ Loading a change another process writes to the file into the open viewer
   - root-cause: 2026-10-16T10:50:11Z @kj the dot is drawn with background-color, which forced colours override
   - log: 2026-10-16T10:50:11Z @kj added
   - log: 2026-10-16T11:06:26Z @kj closed
+- [x] `DEF-LIVE-48-FOLLOW` **Trusted page with Always trust does not follow the file** - MAJOR; with the Always trust box checked, a change another program writes to the file does not show in the page
+  - evidence: red on 1.0.61 trust-keep.spec:149 slide 1 shown; green in 1.0.62 full Galata 122/122, trust-keep.spec:136 after and dcl decks
+  - related: DEF-VIEW-49-KEEP
+  - related: DEF-LIVE-50-JUMP
+  - repro: open a file with Always trust checked, write a change to it from outside the lab; the page keeps the old text
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-23T09:37:38Z @kj the change is loaded and rendered, but the new blob: URL in _render carries no fragment, so a deck that starts from location.hash reopens at slide 1 and hides a change on the reader's slide; dirty-model lead disproved: 35 of 35 follower looks clean, 0 saves (tmp/workflows/trust-info/05-reproduce.md)
+  - root-cause: 2026-10-23T08:28:43Z @kj cause unknown; reproduce first; lead: the follower in src/follow.ts skips every look while the document model is dirty, and the notes write path in src/notes.ts saves the document
+  - log: 2026-10-23T08:28:43Z @kj added
+  - log: 2026-10-23T09:37:38Z @kj root-cause overridden; reason: the reproduction disproved the dirty-model lead
+  - log: 2026-10-24T03:23:40Z @kj closed
+- [x] `DEF-LIVE-50-JUMP` **Trusted page jumps when it renders again** - MEDIUM; with the Always trust box checked, a trusted page that renders again after a change does not stay where the reader was: the scroll position or the slide is lost
+  - evidence: red on 1.0.61 trust-keep.spec:235 400->434 and 400->0; green in 1.0.62 full Galata 122/122, trust-keep.spec:215 plain, after and dcl keep scrollY, hash and slide
+  - related: DEF-LIVE-48-FOLLOW
+  - related: DEF-VIEW-49-KEEP
+  - repro: scroll a trusted page, or step a trusted deck to slide 3, then write a change from outside the lab; the page shows another place
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-23T09:37:38Z @kj three causes: the new blob: URL carries no fragment, so a deck reopens at slide 1; DEF-VIEW-51-ATTACH leaves _page null, so no scroll is saved or restored on a deck that sets its hash at DOMContentLoaded; the scroll is restored at the load event, before a deck that lays out after load shows its slide, so it drifts 34 px
+  - root-cause: 2026-10-23T08:28:43Z @kj cause unknown; reproduce first; leads: the new blob: URL carries no #fragment, so a deck starts at its first slide; the scroll is restored at load, before the page's scripts lay it out
+  - log: 2026-10-23T08:28:43Z @kj added
+  - log: 2026-10-23T09:37:38Z @kj root-cause overridden; reason: three causes proven separately
+  - log: 2026-10-24T03:23:40Z @kj closed
+- [x] `DEF-LIVE-56-ENABLED-TEXT` **Enabled description says the page changes only on reload** - MINOR; the Enabled setting, the README and a viewer comment say that with Enabled off the page changes only on a reload; a mark, note, panel or trust write of the viewer loads the file and shows a change on disk
+  - evidence: schema, README and the viewer comment state reload-or-write; Jest 403 of 403
+  - repro: Enabled off; change the file on disk; add a mark; the page shows the change
+  - test-tags: UNIT
+  - root-cause: 2026-10-24T07:22:54Z @kj NotesController._write calls follower.check() whatever the setting (notes.ts:1095), and the settle renders the loaded text
+  - log: 2026-10-24T07:22:54Z @kj added
+  - log: 2026-10-25T00:28:26Z @kj closed
+- [x] `DEF-LIVE-58-JITTER-TEST` **Settle case of ACC-HILITE-117-MARKS-KEPT fails when the jitter draws are low** - MINOR; src/__tests__/animate.spec.ts:608 does not pin the animator's random draw, so a 4-character run can end before 48 ms and settled fires before the check; failed once in make test of build 1.0.65
+  - evidence: the settle case pins animator.random; Jest 403 of 403
+  - repro: run jest animate.spec repeatedly; 'settles when the last run ends' fails with Expected 0, Received 1 now and then
+  - test-tags: UNIT
+  - root-cause: 2026-10-24T08:05:42Z @kj the case leaves view.animator.random as Math.random while the nearby cases pin it to () => 1
+  - log: 2026-10-24T08:05:42Z @kj added
+  - log: 2026-10-24T08:05:49Z @kj edited title "ACC-HILITE-117 settle case fails when the jitter draws are low" -> "Settle case of ACC-HILITE-117-MARKS-KEPT fails when the jitter draws are low"; reason: title named the criterion without its code
+  - log: 2026-10-25T00:28:26Z @kj closed
+- [x] `DEF-LIVE-60-STRIKE-TEST` **Galata strike check of ACC-ANIM-109-DELETE fails 1 run in 5** - MINOR; ui-tests/tests/live.spec.ts:246 expects a strike colour above 0 in every sample from 500 ms; the strike starts from 0 at 500 ms and each sample reads the paint of the frame before, so a sample at the start reads 0
+  - evidence: samples taken 500 ms after the change; live.spec 25 of 25 alone; full suite 155 passed
+  - repro: run the Galata strike test of live.spec.ts alone 25 times (--repeat-each=25): 5 failed at :246, Received 0
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-24T17:31:37Z @kj the test's sample window opens at the moment the strike starts, not after it
+  - log: 2026-10-24T17:31:37Z @kj added
+  - log: 2026-10-24T17:31:42Z @kj edited repro "jlpm playwright test tests/live.spec.ts -g ACC-ANIM-109 --repeat-each=25: 5 failed at :246, Received 0" -> "run the Galata strike test of live.spec.ts alone 25 times (--repeat-each=25): 5 failed at :246, Received 0"; reason: repro named the criterion without its code
+  - log: 2026-10-25T00:28:26Z @kj closed
+- [x] `DEF-LIVE-61-ELEMENT-TEST` **Galata frame check of ACC-ANIM-118-ADD-ELEMENT fails 1 run in 5** - MINOR; ui-tests/tests/live.spec.ts:347 expects a frame between the space before an added b and the b's first letter; at 75 characters per second one frame sometimes types both, which the criterion allows
+  - evidence: MutationObserver asserts the insertion before the text node; live.spec 25 of 25 alone; full suite 155 passed
+  - repro: run the Galata added-element test of live.spec.ts alone 25 times (--repeat-each=25): 5 failed at :347, Received 'Two b'
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-24T17:31:37Z @kj the test asserts a frame boundary the animator does not promise; the carried fraction of a character lets one frame type 2 characters
+  - log: 2026-10-24T17:31:37Z @kj added
+  - log: 2026-10-24T17:31:42Z @kj edited repro "jlpm playwright test tests/live.spec.ts -g ACC-ANIM-118 --repeat-each=25: 5 failed at :347, Received 'Two b'" -> "run the Galata added-element test of live.spec.ts alone 25 times (--repeat-each=25): 5 failed at :347, Received 'Two b'"; reason: repro named the criterion without its code
+  - log: 2026-10-25T00:28:27Z @kj closed
 
 ## Notes panel `PANEL`
 
@@ -308,6 +451,13 @@ Defects of the Galata suite itself
   - root-cause: 2026-10-13T15:01:36Z @kj jupyterlab_galaxahub_motd_extension, installed on this workstation, opens its Welcome tab some time after the lab has started. ui-tests/jupyter_server_test_config.py left that switch on, so a test that had opened its document by then lost the front tab. The fixture override in helpers.ts only stops the tests waiting for the Launcher.
   - log: 2026-10-13T15:01:36Z @kj added
   - log: 2026-10-13T15:13:49Z @kj closed; reason: names the configuration line, its source and the repetition run
+- [x] `DEF-TEST-64-POLL-TIMEOUT` **Galata polls time out at the 5 s default** - MEDIUM; three waits that name no timeout fail in a loaded full-suite run: trust-race.spec.ts:424 and helpers.ts:306 twice, each 25 of 25 alone; neighbouring polls in the same files name 15 s
+  - evidence: full suite 155 passed of 155 in 14.5 min on 1.0.68 with the suite default expect timeout 15 s; logs/galata-timeout-full.log; no failure to rerun alone
+  - repro: full suite on 1.0.68 while other projects' suites and ComfyUI held load 70-91: 2 failed, 153 passed; logs/advfix-r3-full.log
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-25T00:02:12Z @kj Playwright's default poll timeout is 5 s; the suite's own slow polls name 15 s, so the default is the outlier on a shared workstation
+  - log: 2026-10-25T00:02:12Z @kj added
+  - log: 2026-10-25T00:19:36Z @kj closed
 
 ## Agent skill `AGENT`
 
@@ -386,6 +536,15 @@ Writing marks and notes into the file
   - root-cause: 2026-10-16T10:50:11Z @kj every settings write carries the panel state, and a settings marker without a panel state cannot be read
   - log: 2026-10-16T10:50:11Z @kj added
   - log: 2026-10-16T11:06:26Z @kj closed
+- [x] `DEF-STORE-62-READ-BACK` **A file written from outside just after a marker write is never shown, and the next marker write corrupts it** - CRITICAL; the write route answers the hash it reads back after saving; an outside write landing before that read makes the viewer record the outside text's hash as its own, so the follower never loads it and the next marker edit is applied to the outside text; jupyterlab_advanced_html_viewer_extension/routes.py:136-138
+  - evidence: route answers the hash of the bytes it wrote; pytest post_save_hook red then green, 30 of 30; the Galata case DEF-STORE-62-READ-BACK green (ui-tests/tests/live.spec.ts); full suite 155 passed (logs/galata-timeout-full.log)
+  - repro: make the outside write from an fs.watch callback as soon as the file holds marks:settings (tmp/workflows/live107-probe/10-probe.md): 5 of 5 runs never showed it, and the next settings write cut text from the file
+  - test-tags: UNIT, FUNCTIONAL
+  - root-cause: 2026-10-24T18:17:34Z @kj routes.py answers manager.get after manager.save; jupyter_server saves in place, so another process can rewrite the file before the read-back, and the answered hash belongs to text the document does not hold
+  - log: 2026-10-24T18:17:34Z @kj added
+  - log: 2026-10-24T18:17:47Z @kj edited text "the write route answers the hash it reads back after saving; an outside write landing before that read makes the viewer record the outside text's hash as its own, so the follower never loads it and the next marker edit is applied to the outside text; jupyter_advanced_html_viewer_extension/routes.py:136-138" -> "the write route answers the hash it reads back after saving; an outside write landing before that read makes the viewer record the outside text's hash as its own, so the follower never loads it and the next marker edit is applied to the outside text; jupyterlab_advanced_html_viewer_extension/routes.py:136-138"; reason: package name in the path was wrong
+  - log: 2026-10-25T00:28:26Z @kj closed
+  - log: 2026-10-25T00:28:54Z @kj edited evidence "route answers the hash of the bytes it wrote; pytest post_save_hook red then green, 30 of 30; Galata DEF-STORE-62 green; full suite 155 passed (logs/galata-timeout-full.log)" -> "route answers the hash of the bytes it wrote; pytest post_save_hook red then green, 30 of 30; the Galata case DEF-STORE-62-READ-BACK green (ui-tests/tests/live.spec.ts); full suite 155 passed (logs/galata-timeout-full.log)"
 
 ## Build and checks `BUILD`
 

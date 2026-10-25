@@ -63,6 +63,27 @@ async def test_write_stale_hash(jp_fetch, jp_root_dir):
     assert (jp_root_dir / "page.html").read_text() == PAGE
 
 
+async def test_write_answers_the_hash_it_wrote(jp_fetch, jp_root_dir, jp_serverapp):
+    """DEF-STORE-62: a file rewritten after the save answers the hash of the text the route wrote."""
+    (jp_root_dir / "page.html").write_text(PAGE)
+    expected = await disk_hash(jp_fetch, "page.html")
+    marked = PAGE.replace("Hello", f"{MARKER}Hello")
+    outside = marked.replace("world", "figs")
+    manager = jp_serverapp.contents_manager
+    # Another process writes the file between the route's save and its read-back.
+    manager.register_post_save_hook(lambda **_: (jp_root_dir / "page.html").write_text(outside))
+
+    response = await write(
+        jp_fetch,
+        {"path": "page.html", "expected": expected, "edits": insert(PAGE, PAGE.index("Hello"), MARKER)},
+    )
+
+    model = json.loads(response.body)
+    assert (jp_root_dir / "page.html").read_text() == outside
+    assert model["hash"] == hashlib.new(manager.hash_algorithm, marked.encode("utf-8")).hexdigest()
+    assert model["hash"] != await disk_hash(jp_fetch, "page.html")
+
+
 async def test_write_counts_utf16_units(jp_fetch, jp_root_dir):
     """ACC-ROUTE-72: an offset counts UTF-16 units, so a character outside the BMP counts two."""
     page = "<p>\U0001f600 Hello</p>\n"

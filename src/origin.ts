@@ -70,6 +70,11 @@ export class PageMap {
     return this._texts;
   }
 
+  /** The element of the page matched to an element of the file, null for none. */
+  element(element: IStaticElement): Element | null {
+    return this._live.get(element) ?? null;
+  }
+
   /** Where a text node of the page sits in the file, null for page content. */
   place(node: Node): ITextPlace | null {
     return this._places.get(node as Text) ?? null;

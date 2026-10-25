@@ -12,6 +12,10 @@
  * The washes are the ones the advanced Markdown viewer lays, the light set on
  * a light page and the dark set on a dark one; the page's own background
  * decides which, since the page keeps its colours whatever the lab's theme.
+ *
+ * The highlights of a change of the file (src/animate.ts) go beside the
+ * marks, above them, under names and in a stylesheet of their own, coloured
+ * with the lab theme's success and error colours.
  */
 
 import { MARK_COLOURS, MarkColour } from './marks';
@@ -69,10 +73,17 @@ const NAMES = [
 /** How long a passage flashes, in two beats. */
 export const FLASH_MS = 1800;
 
+/** A highlight of the page's window: the ranges it paints, and its place among the others. */
+export interface IHighlight {
+  priority: number;
+  add(range: Range): void;
+  forEach(callback: (range: Range) => void): void;
+}
+
 /** The window of a page, with the two parts of the API this module reads. */
 type PageWindow = Window & {
   CSS?: { highlights?: Map<string, unknown> };
-  Highlight?: new (...ranges: Range[]) => { priority: number };
+  Highlight?: new (...ranges: Range[]) => IHighlight;
   CSSStyleSheet: typeof CSSStyleSheet;
 };
 
@@ -212,4 +223,110 @@ export function flash(win: Window, ranges: Range[]): void {
     window.setTimeout(on, beat * 2),
     window.setTimeout(off, beat * 3)
   ]);
+}
+
+/**
+ * The name of the highlight painting the text change `n` added, or removed.
+ * Each change has its pair, since each rises on its own clock.
+ */
+export function changeName(kind: 'added' | 'removed', n: number): string {
+  return `jp-ahv-${kind}-${n}`;
+}
+
+/** Any name {@link changeName} gives. */
+const CHANGE_NAME = /^jp-ahv-(added|removed)-\d+$/;
+
+/** The share of the theme colour a change's background takes at full strength, in percent. */
+const CHANGE_PERCENT = { added: 35, removed: 31 };
+
+/** The colours of added and of removed text: the lab theme's success and error colours. */
+export interface IChangeColours {
+  added: string;
+  removed: string;
+}
+
+/**
+ * Read the change colours off the lab's own theme, now. The page keeps its
+ * colours whatever the theme, and the values come from the lab's document, so
+ * nothing the page carries reaches the rules.
+ */
+export function changeColours(): IChangeColours {
+  const style = getComputedStyle(document.body);
+  return {
+    added: style.getPropertyValue('--jp-success-color1').trim(),
+    removed: style.getPropertyValue('--jp-error-color1').trim()
+  };
+}
+
+/** One change's highlights at one moment. */
+export interface IChangeLook {
+  n: number;
+  colours: IChangeColours;
+  /** The background, from 0 for transparent to 1 for full. */
+  strength: number;
+  /** The strike over removed text, from 0 for transparent to 1 for the text's colour. */
+  strike: number;
+}
+
+/**
+ * Register an empty highlight under a change's name, above the marks, for the
+ * ranges the change shows as it goes.
+ */
+export function changeHighlight(win: Window, name: string): IHighlight {
+  const page = win as PageWindow;
+  const highlight = new page.Highlight!();
+  highlight.priority = 2;
+  page.CSS!.highlights!.set(name, highlight);
+  return highlight;
+}
+
+/** The change highlights' stylesheet adopted by each page document, with the rules it holds. */
+const changeSheets = new WeakMap<
+  Document,
+  { sheet: CSSStyleSheet; rules: string }
+>();
+
+/** A theme colour at a share of full strength, as CSS. */
+function mix(colour: string, percent: number): string {
+  return `color-mix(in srgb, ${colour} ${percent.toFixed(2)}%, transparent)`;
+}
+
+/**
+ * Colour the changes given at their strengths, in a stylesheet of the page's
+ * own beside the marks' one, and take every other change's highlights off the
+ * page. A frame that changes no strength writes nothing.
+ */
+export function paintChanges(win: Window, looks: IChangeLook[]): void {
+  const page = win as PageWindow;
+  const doc = win.document;
+  const kept = new Set<string>();
+  const rules = looks
+    .map(({ n, colours, strength, strike }) => {
+      kept.add(changeName('added', n)).add(changeName('removed', n));
+      return [
+        `::highlight(${changeName('added', n)}) { background-color: ${mix(colours.added, CHANGE_PERCENT.added * strength)}; }`,
+        `::highlight(${changeName('removed', n)}) { background-color: ${mix(colours.removed, CHANGE_PERCENT.removed * strength)}; text-decoration-line: line-through; text-decoration-color: ${mix('currentcolor', 100 * strike)}; }`
+      ].join('\n');
+    })
+    .join('\n');
+  if (!canPaint(win)) {
+    return;
+  }
+  const registry = page.CSS!.highlights!;
+  for (const name of Array.from(registry.keys())) {
+    if (CHANGE_NAME.test(name) && !kept.has(name)) {
+      registry.delete(name);
+    }
+  }
+  let held = changeSheets.get(doc);
+  if ((held?.rules ?? '') === rules) {
+    return;
+  }
+  if (!held) {
+    held = { sheet: new page.CSSStyleSheet(), rules };
+    changeSheets.set(doc, held);
+    doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, held.sheet];
+  }
+  held.rules = rules;
+  held.sheet.replaceSync(rules);
 }

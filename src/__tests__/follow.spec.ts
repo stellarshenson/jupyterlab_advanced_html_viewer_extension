@@ -131,6 +131,29 @@ describe('following the file on disk', () => {
     }
   });
 
+  it('ACC-LIVE-100 takes no look at its interval while Enabled is off, one at once when it is on again, and those asked for either way', async () => {
+    jest.useFakeTimers();
+    try {
+      const context = fakeContext('<p>old</p>');
+      const contents = fakeContents('<p>new</p>', 'h2');
+      const follower = new Follower({ context, contents, interval: 2000 });
+      followers.push(follower);
+      follower.enabled = false;
+      await jest.advanceTimersByTimeAsync(6000);
+      expect(contents.get).not.toHaveBeenCalled();
+      // The notes controller's write asks for a look of its own.
+      expect(await follower.check()).toBe(true);
+      expect(contents.get).toHaveBeenCalledTimes(2);
+      context.contentsModel = { hash: 'h1' };
+      follower.enabled = true;
+      expect(contents.get).toHaveBeenCalledTimes(3);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(context.state.text).toBe('<p>new</p>');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('DEF-LIVE-28 gives every view of a document one follower, which ends with its last view', () => {
     const context = fakeContext('<p>text</p>');
     const contents = fakeContents('<p>text</p>', 'h1');

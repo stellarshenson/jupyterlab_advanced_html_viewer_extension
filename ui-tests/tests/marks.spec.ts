@@ -1,6 +1,7 @@
 import { expect, test } from '@jupyterlab/galata';
 
 import {
+  FRAME,
   choose,
   closeMenus,
   entry,
@@ -245,6 +246,55 @@ test('ACC-STORE-36 paints a new mark without loading the page again', async ({
   expect(await painted(page, 'jp-ahv-yellow')).toEqual(['cherries']);
 });
 
+test('ACC-HILITE-117 keeps a mark painted while a paragraph above it types in', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'kept-painted');
+  writeFile(file, PAGE);
+  await openViewer(page, file, 'apples and pears');
+  await mark(page, file, 'cherries');
+  // What the mark paints and the text after the heading, in every animation
+  // frame of the lab from now on.
+  await page.evaluate((selector: string) => {
+    const frame = document.querySelector<HTMLIFrameElement>(selector)!;
+    const seen: [string, string][] = ((window as any).__paint = []);
+    const take = (): void => {
+      const found = (frame.contentWindow as any).CSS.highlights.get(
+        'jp-ahv-yellow'
+      );
+      seen.push([
+        found ? Array.from(found, (range: Range) => String(range)).join() : '',
+        frame.contentDocument!.querySelector('h1')!.nextElementSibling!
+          .textContent ?? ''
+      ]);
+      if (!(window as any).__stop) {
+        requestAnimationFrame(take);
+      }
+    };
+    requestAnimationFrame(take);
+  }, FRAME);
+  const added = 'A paragraph added above the mark.';
+  writeFile(
+    file,
+    fileText(file).replace(
+      '<h1>Report</h1>',
+      `<h1>Report</h1>\n<p>${added}</p>`
+    )
+  );
+  await expect.poll(() => frameText(page), { timeout: 10000 }).toContain(added);
+  await page.waitForTimeout(500);
+  const seen: [string, string][] = await page.evaluate(() => {
+    (window as any).__stop = true;
+    return (window as any).__paint;
+  });
+  const typed = seen
+    .map(([, text]) => text)
+    .filter((text, i, all) => text !== all[i - 1] && added.startsWith(text));
+  expect(typed.length).toBeGreaterThan(5);
+  expect(seen.every(([marked]) => marked === 'cherries')).toBe(true);
+});
+
 test('ACC-MARK-37 marks a passage in each of the six colours', async ({
   page,
   tmpPath
@@ -468,4 +518,142 @@ test('ACC-MARK-46 leaves the browser its menu on a Shift right click', async ({
   await page.waitForTimeout(300);
   await expect(menu(page)).toHaveCount(0);
   await page.keyboard.press('Escape');
+});
+
+test('DEF-MARK-47 a left click in the page closes the lab menu', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'menu-close');
+  writeFile(file, PAGE);
+  await openViewer(page, file, 'apples and pears');
+  const text = await pointAt(page, 'cherries');
+  // Above the menu, which opens below and right of the right click.
+  const elsewhere = await pointAt(page, 'apples');
+  await openMenu(page, text);
+  await page.mouse.click(elsewhere.x, elsewhere.y);
+  await expect(menu(page)).toHaveCount(0);
+
+  await openMenu(page, text);
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).toHaveCount(0);
+
+  await openMenu(page, text);
+  await closeMenus(page);
+});
+
+test('DEF-MARK-55 a right-click on text selected while a change types in lands the change and offers Mark and Add Comment', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'mark-typing');
+  writeFile(file, PAGE);
+  await openViewer(page, file, 'apples and pears');
+  // Below the selected text, so the selection keeps its place on screen.
+  const added = 'A long paragraph added below the others. '.repeat(12).trim();
+  writeFile(
+    file,
+    PAGE.replace('</body>', `<p id="added">${added}</p>\n</body>`)
+  );
+  const typed = (): Promise<string> =>
+    inFrame<string>(
+      page,
+      "return doc.getElementById('added')?.textContent ?? '';"
+    );
+  await expect
+    .poll(async () => (await typed()).length, { timeout: 10000 })
+    .toBeGreaterThan(20);
+  // Typed on, the rest takes seconds more.
+  expect((await typed()).length).toBeLessThan(added.length / 2);
+  await openMenu(page, await select(page, 'apples'));
+  await expect(entry(page, 'Mark')).toBeVisible();
+  await expect(entry(page, 'Add Comment')).toBeVisible();
+  expect(await typed()).toBe(added);
+  await closeMenus(page);
+});
+
+test('DEF-MARK-55 a press while a change above types in keeps the drag and the click', async ({
+  page,
+  tmpPath
+}) => {
+  const file = fixture(tmpPath, 'press-typing');
+  const linked = PAGE.replace(
+    'mentions oranges and plums.',
+    'links <a href="#plums">plums</a> and mentions oranges.'
+  );
+  writeFile(file, linked);
+  await openViewer(page, file, 'oranges');
+  // Lines four pixels high: a line the typing starts moves the text below
+  // less than half its line, and the rest of the change lands many lines.
+  const added = 'abcdefghijklmnopqrstuvwxyz '.repeat(110).trim();
+  const typed = (id: string): Promise<string> =>
+    inFrame<string>(
+      page,
+      "return doc.getElementById(arg)?.textContent ?? '';",
+      id
+    );
+  const typeAbove = async (ids: string[]): Promise<void> => {
+    const above = ids.map(
+      id =>
+        `<p id="${id}" style="font: 4px/4px monospace; width: 200ch">${added}</p>\n`
+    );
+    writeFile(
+      file,
+      linked.replace('<p>The first', `${above.join('')}<p>The first`)
+    );
+    const last = ids[ids.length - 1];
+    await expect
+      .poll(async () => (await typed(last)).length, { timeout: 10000 })
+      .toBeGreaterThan(20);
+    expect((await typed(last)).length).toBeLessThan(added.length / 2);
+  };
+
+  // page.mouse.move with the button held does not return over the page's
+  // frame, so the drag goes to the browser's input directly.
+  const client = await page.context().newCDPSession(page.context().pages()[0]);
+  const input = (
+    type: 'mousePressed' | 'mouseMoved' | 'mouseReleased',
+    x: number,
+    y: number
+  ): Promise<unknown> =>
+    client.send('Input.dispatchMouseEvent', {
+      type,
+      x,
+      y,
+      button: 'left',
+      buttons: type === 'mouseReleased' ? 0 : 1,
+      clickCount: 1
+    });
+
+  await typeAbove(['first']);
+  // Inside the halves of the first and last letters that put the caret
+  // before and after the word.
+  const from = await pointAt(page, 'oranges', 0);
+  const to = await pointAt(page, 'oranges', 'oranges'.length - 1);
+  const [x0, x1, y] = [from.x - 2, to.x + 2, from.y];
+  await page.mouse.move(x0, y);
+  await input('mousePressed', x0, y);
+  for (let step = 1; step <= 5; step++) {
+    await input('mouseMoved', x0 + ((x1 - x0) * step) / 5, y);
+  }
+  await input('mouseReleased', x1, y);
+  const selected = await inFrame<string>(
+    page,
+    'return win.getSelection().toString();'
+  );
+  expect(await typed('first')).toBe(added);
+
+  await inFrame(
+    page,
+    `win.clicks = 0;
+    doc.querySelector('a').addEventListener('click', event => {
+      event.preventDefault();
+      win.clicks++;
+    });`
+  );
+  await typeAbove(['first', 'second']);
+  const link = await pointAt(page, 'plums');
+  await page.mouse.click(link.x, link.y);
+  const clicks = await inFrame<number>(page, 'return win.clicks;');
+  expect({ selected, clicks }).toEqual({ selected: 'oranges', clicks: 1 });
 });

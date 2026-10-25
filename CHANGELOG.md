@@ -2,6 +2,27 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.69] - 2026-10-25
+
+### Added
+
+- A change another program writes to the file shows in the open page in place, without a reload: the scroll position, the part of the address after the # and the state of the page's scripts stay; a change the page cannot take renders the page again, with the added text on green
+- Added text is typed in letter by letter and removed text stands struck through before it goes; the Animate changes setting shows a change at once
+- Added text shows on the theme's success colour and removed text on its error colour, fading a few seconds after the change; the Highlight changes setting switches it off
+- The tab of a file that changes on disk shows a half circle that swaps sides while changes arrive, and a dot in the theme's brand colour 2 for changes that arrived while the tab was behind another
+- More info, beside the Always trust this page checkbox, opens a dialog read from the file without running it: what trust allows, the page's inline scripts, the address of each script file, the other hosts it loads from, and the browser features its inline scripts name
+- A trusted page's scripts may change the part of its address after the #, as a slide deck does to record its slide; the Let a trusted page change its address setting switches it off
+- The Enabled setting switches following off; the file is then read when you reload the page or the viewer writes a mark, a note, the panel state or the trust
+
+### Fixed
+
+- A file written from outside just after a marker write was never shown, and the next marker write corrupted it: the write route answered the hash it read back after saving, so the outside write became the viewer's recorded revision
+- A distrust in one view of a file was undone by the other view, whose write-back put the trust signature back into the file
+- A link to another site inside the page left the viewer stuck: Rerender, Trust, following the file and closing the tab threw SecurityError
+- While a change was typing in, Mark and Add Comment were missing; a press or right-click now lands the change at once, and the press lands on release so a click or a drag is not lost
+- The More info dialog listed the most serious consequence of trust last and buried it in sandbox terms; it now comes first, and an inline script that names a javascript: address is described as such
+- With Enabled off, the setting's description claimed the file is never read, while a mark, a note, a panel toggle or a trust write reads it and shows the change
+
 ## [1.0.60] - 2026-10-21
 
 ### Changed

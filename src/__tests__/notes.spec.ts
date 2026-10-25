@@ -52,6 +52,8 @@ function fakeViewer(text: string, dirty = false): any {
     pageLoaded: new Signal<any, any>(owner),
     trustChosen: new Signal<any, boolean>(owner),
     disposed: new Signal<any, void>(owner),
+    changeSettled: new Signal<any, void>(owner),
+    animating: false,
     page: null,
     trusted: false,
     setRemembered: jest.fn(),
@@ -250,6 +252,28 @@ describe('writing a marker to disk', () => {
         `<!-- mark:${id} note colour=yellow\\n@kj \\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ: Say which world\\.\\n-->world`
       )
     );
+  });
+});
+
+describe('matching the page while a change is applied in place', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('ACC-HILITE-117 matches the page once when the change settles, and not while it animates', async () => {
+    jest.useFakeTimers();
+    const viewer = fakeViewer(PAGE);
+    const controller = await controllerOf(viewer);
+    let matched = 0;
+    controller.changed.connect(() => matched++);
+    viewer.animating = true;
+    viewer.context.model.sharedModel.updateSource(0, 0, '\n');
+    jest.advanceTimersByTime(1000);
+    expect(matched).toBe(0);
+    viewer.animating = false;
+    viewer.changeSettled.emit();
+    jest.advanceTimersByTime(0);
+    expect(matched).toBe(1);
+    jest.advanceTimersByTime(1000);
+    expect(matched).toBe(1);
   });
 });
 

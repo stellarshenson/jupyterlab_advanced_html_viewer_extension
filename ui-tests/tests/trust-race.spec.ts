@@ -344,8 +344,14 @@ test('DEF-VIEW-44 a distrust of a read-only remembered file survives the next se
     // distrust in force: the file still holds the signature.
     await alwaysTrustBox(page).click();
     await expect
-      .poll(() => frameText(page))
-      .not.toContain('Written by a script.');
+      .poll(async () => {
+        const text = await frameText(page);
+        return (
+          text.includes('Text written in the file.') &&
+          !text.includes('Written by a script.')
+        );
+      })
+      .toBe(true);
     await expect(alwaysTrustBox(page)).not.toBeChecked();
 
     // A comment changes the model although the save is refused; the settle

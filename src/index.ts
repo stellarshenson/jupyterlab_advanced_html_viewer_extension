@@ -123,8 +123,16 @@ function colourOf(value: unknown): MarkColour {
 
 /** The settings this extension reads. */
 interface ISettings extends INotesSettings {
+  /** Whether a change on disk is looked for and applied to the open page. */
+  enabled: boolean;
+  /** Whether a change is typed in and deleted, rather than shown at once. */
+  animation: boolean;
+  /** Whether a change is painted green where added and red where removed. */
+  highlight: boolean;
   /** Whether a viewer's tab shows the marker of changes from disk. */
   tabCue: boolean;
+  /** Whether a trusted page may change the part of its address after the #. */
+  trustedHistory: boolean;
 }
 
 /** The settings this extension reads, with their defaults. */
@@ -132,7 +140,11 @@ function readSettings(settings: ISettingRegistry.ISettings | null): ISettings {
   const author = settings?.composite.author;
   return {
     author: typeof author === 'string' ? author : '',
-    tabCue: settings?.composite.tabCue !== false
+    enabled: settings?.composite.enabled !== false,
+    animation: settings?.composite.animation !== false,
+    highlight: settings?.composite.highlight !== false,
+    tabCue: settings?.composite.tabCue !== false,
+    trustedHistory: settings?.composite.trustedHistory !== false
   };
 }
 
@@ -238,10 +250,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
     };
 
     factory.widgetCreated.connect((_, viewer) => {
+      // Before the trust, so a page trusted by default renders once.
+      viewer.trustedHistory = current.trustedHistory;
       if (trustByDefault) {
         viewer.trusted = true;
       }
       viewer.tabCue = current.tabCue;
+      viewer.enabled = current.enabled;
+      viewer.animation = current.animation;
+      viewer.highlight = current.highlight;
       viewer.title.icon = html5Icon;
       void tracker.add(viewer);
       viewer.context.pathChanged.connect(() => void tracker.save(viewer));
@@ -490,6 +507,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
             for (const attachment of attachments.values()) {
               attachment.notes.updateSettings(current);
               attachment.viewer.tabCue = current.tabCue;
+              attachment.viewer.trustedHistory = current.trustedHistory;
+              attachment.viewer.enabled = current.enabled;
+              attachment.viewer.animation = current.animation;
+              attachment.viewer.highlight = current.highlight;
             }
           };
           handle.settings = settings;

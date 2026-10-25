@@ -15,6 +15,12 @@
  * on it in place and the page's scripts keep their state. Nor is an update
  * request: the layout sends one whenever it refits, as it does when the notes
  * panel beside the frame opens, and the built-in viewer renders on each.
+ *
+ * A change the follower loads from disk is carried out on the page in place:
+ * planned against the page (src/patch.ts), then typed in and deleted
+ * (src/animate.ts). A change the page cannot take in place renders it again,
+ * and the new page tints the file text the change added. An edit in the lab
+ * renders as before.
  */
 
 import { ActivityMonitor } from '@jupyterlab/coreutils';
@@ -40,21 +46,54 @@ import { ISignal, Signal } from '@lumino/signaling';
 import { Widget } from '@lumino/widgets';
 import * as React from 'react';
 
+import { ChangeAnimator } from './animate';
 import { TabCue } from './cue';
 import { fitPage } from './fit';
 import { Follower } from './follow';
 import { FULL_SCREEN_ICON } from './icons';
 import { parseSettings } from './marks';
 import { applyPageTheme, pageThemeStyle } from './page-theme';
+import { addedRanges, planChange } from './patch';
 import { trustSignature } from './request';
 import { analyse, IAnalysis, IPageOptions } from './source';
 import { stripMarkers } from './store';
+import { showTrustInfo } from './trust-info';
 
 /** Class of the viewer widget. */
 export const VIEWER_CLASS = 'jp-AdvancedHTMLViewer';
 
 /** How long the document must stay still before the page is rendered again. */
 export const RENDER_TIMEOUT = 1000;
+
+/** The reader's input that ends the scroll hold of a page loaded again. */
+const READER_INPUT = ['wheel', 'keydown', 'pointerdown', 'touchstart'];
+
+/**
+ * Scroll a page loaded again to where the reader was, and hold it there for
+ * a second while the page's own scripts lay it out after the load event, as
+ * a deck that shows its slide then does (DEF-LIVE-50). Without the hold the
+ * browser's scroll anchoring keeps the line at the top of the half-built
+ * page, not the line the reader saw. The reader's first scroll, key or press
+ * ends the hold.
+ */
+// shortcut: a page that lays out more than RENDER_TIMEOUT after its load still drifts; hold until the page's layout is still for a while if one needs longer.
+function holdScroll(win: Window, x: number, y: number): void {
+  win.scrollTo(x, y);
+  const hold = new (win as Window & typeof globalThis).ResizeObserver(() =>
+    win.scrollTo(x, y)
+  );
+  hold.observe(win.document.documentElement);
+  const stop = (): void => {
+    hold.disconnect();
+    for (const type of READER_INPUT) {
+      win.removeEventListener(type, stop, true);
+    }
+  };
+  for (const type of READER_INPUT) {
+    win.addEventListener(type, stop, { capture: true, passive: true });
+  }
+  window.setTimeout(stop, RENDER_TIMEOUT);
+}
 
 /** The sandbox tokens the frame always carries, and the two trust adds. */
 export const SANDBOX: {
@@ -101,19 +140,67 @@ input[formtarget="_blank"][type="submit"]:hover::after {
 </style>`;
 }
 
+/** Id of the script a trusted page carries to change its address. */
+export const HISTORY_SCRIPT_ID = 'jp-AdvancedHtml-history';
+
+// shortcut: a srcdoc or about:blank frame inside the page keeps the browser's History and stays refused, wrap that frame's History too when a page needs it.
+/**
+ * The script that lets a trusted page change the part of its address after
+ * the # (DEF-VIEW-46, ACC-VIEW-95). The frame loads a blob: URL, which may
+ * change only its fragment, while the page's base is the file's address, so
+ * history.pushState('#1') names the file and the browser refuses it. The
+ * script sends an address of the file itself, with the base's query or none,
+ * to the frame's own address with the same fragment, and so the page's own
+ * address as location reports it: the inner address of the blob, which decks
+ * write back to clear the fragment. An empty address goes to the browser,
+ * which keeps the address as it is; any other address goes unchanged, and
+ * the browser refuses it as before.
+ */
+export const HISTORY_SCRIPT = `<script id="${HISTORY_SCRIPT_ID}">
+(() => {
+  const base = new URL(document.baseURI);
+  for (const name of ['pushState', 'replaceState']) {
+    const original = History.prototype[name];
+    History.prototype[name] = function (state, title, url) {
+      if (url !== undefined && url !== null && url !== '') {
+        try {
+          const target = new URL(url, document.baseURI);
+          if (
+            (target.origin === base.origin &&
+              target.pathname === base.pathname &&
+              (target.search === '' || target.search === base.search)) ||
+            target.href.split('#')[0] === location.pathname + location.search
+          ) {
+            url = location.href.split('#')[0] + target.hash;
+          }
+        } catch {
+          // An address that does not parse goes to the browser, which refuses it.
+        }
+      }
+      return original.call(this, state, title, url);
+    };
+  }
+})();
+</script>`;
+
 /**
  * How the page is built for a trust state: the page's scripts run only when
- * trusted, and an untrusted page carries the warning style.
+ * trusted, a trusted page with `history` on carries the history script, and
+ * an untrusted page carries the warning style.
  */
 export function pageOptions(
   trusted: boolean,
   base: string | null,
-  warning: string
+  warning: string,
+  history = false
 ): IPageOptions {
   return {
     scripting: trusted,
     base,
-    extra: pageThemeStyle() + (trusted ? '' : warningStyle(warning))
+    extra:
+      (trusted && history ? HISTORY_SCRIPT : '') +
+      pageThemeStyle() +
+      (trusted ? '' : warningStyle(warning))
   };
 }
 
@@ -144,7 +231,8 @@ export function rememberedTrust(
 }
 
 /**
- * A page loaded in the frame, with the reading of the file it was made from.
+ * A page loaded in the frame, with the reading of the file it shows, which a
+ * change applied in place replaces.
  */
 export interface IPage {
   window: Window;
@@ -209,6 +297,8 @@ export class AdvancedHTMLViewer extends DocumentWidget<
           context: this.context,
           contents: options.contents
         });
+        this._follower.enabled = this._enabled;
+        this._follower.loaded.connect(this._onFollowerLoaded, this);
         this._cue = new TabCue(
           this,
           this._follower,
@@ -216,7 +306,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
             'jupyterlab_advanced_html_viewer_extension'
           )
         );
-        this._cue.enabled = this._tabCue;
+        this._cue.enabled = this._tabCue && this._enabled;
       }
       // A change that settles during the trust check renders nothing before
       // it: the first render reads the document as it is by then.
@@ -310,7 +400,81 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   set tabCue(value: boolean) {
     this._tabCue = value;
     if (this._cue) {
-      this._cue.enabled = value;
+      this._cue.enabled = value && this._enabled;
+    }
+  }
+
+  /**
+   * Whether a change on disk is looked for and applied to the page; the
+   * `enabled` setting. Off, the file is read only on Rerender and before a
+   * write of the notes controller, and the page renders a change that read
+   * brings or an edit in the lab; a change running on the page completes at
+   * once and its highlights and the tab marker leave; on again, the file is
+   * looked at at once (ACC-LIVE-100).
+   */
+  get enabled(): boolean {
+    return this._enabled;
+  }
+  set enabled(value: boolean) {
+    this._enabled = value;
+    if (this._follower) {
+      this._follower.enabled = value;
+    }
+    if (this._cue) {
+      this._cue.enabled = this._tabCue && value;
+    }
+    if (!value) {
+      this._animator?.clear();
+    }
+  }
+
+  /** Whether a change is typed in and deleted; the `animation` setting, taken on the next frame. */
+  get animation(): boolean {
+    return this._animation;
+  }
+  set animation(value: boolean) {
+    this._animation = value;
+    if (this._animator) {
+      this._animator.animation = value;
+    }
+  }
+
+  /** Whether a change is painted green and red; the `highlight` setting, taken on the next frame. */
+  get highlight(): boolean {
+    return this._highlight;
+  }
+  set highlight(value: boolean) {
+    this._highlight = value;
+    if (this._animator) {
+      this._animator.highlight = value;
+    }
+  }
+
+  /** Whether a change from disk is still typed in or deleted on the page. */
+  get animating(): boolean {
+    return this._animator?.animating ?? false;
+  }
+
+  /** Emitted when the page has come to read as the file after a change applied in place. */
+  get changeSettled(): ISignal<this, void> {
+    return this._changeSettled;
+  }
+
+  /**
+   * Whether a trusted page may change the part of its address after the #;
+   * the `trustedHistory` setting. A change renders a trusted page again, so
+   * it gets or loses the history script.
+   */
+  get trustedHistory(): boolean {
+    return this._trustedHistory;
+  }
+  set trustedHistory(value: boolean) {
+    if (this._trustedHistory === value) {
+      return;
+    }
+    this._trustedHistory = value;
+    if (this.trusted) {
+      void this._render();
     }
   }
 
@@ -332,6 +496,9 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   /**
    * Emitted when the reader trusts or distrusts the page, which the notes
    * controller records in the file; trust set any other way records nothing.
+   * Also emitted with true when a change from disk took the signature out of
+   * a file whose box was checked, so the signature is written back
+   * (DEF-VIEW-49).
    */
   get trustChosen(): ISignal<this, boolean> {
     return this._trustChosen;
@@ -392,6 +559,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       return;
     }
     await this.context.revert();
+    this._fromDisk = !trustValue(this.context.model.toString());
     void this._render();
   }
 
@@ -402,6 +570,7 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     document.removeEventListener('focusin', this._onFocusIn, true);
     window.removeEventListener('blur', this._onBlur);
     this._focused = null;
+    this._animator?.clear();
     this._monitor?.dispose();
     this._fitObserver.disconnect();
     this._cue?.dispose();
@@ -505,8 +674,10 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   /**
    * The document stopped changing: read the remembered trust and render,
    * unless only markers moved. A change from disk that removes the signature
-   * clears the box; one that brings it checks the box, and renders the page
-   * trusted first, never untrusted first (DEF-VIEW-37).
+   * while the box is checked has it written back, and one that carries
+   * another value clears the box; one that brings the signature checks the
+   * box, and renders the page trusted first, never untrusted first
+   * (DEF-VIEW-37).
    */
   private async _onSettled(): Promise<void> {
     if (!(await this._checkRemembered()) || this.isDisposed) {
@@ -527,14 +698,33 @@ export class AdvancedHTMLViewer extends DocumentWidget<
    * the file cannot trust it. An answer that needs no request moves the run
    * too, so it supersedes a request already in flight. This never distrusts
    * an open page: removing the marker clears the remembered state only.
+   * Where the box is checked and a change from disk leaves no trust value at
+   * all, as a program that rewrites the whole file from an older copy does,
+   * the box stays checked and the signature is written back (DEF-VIEW-49).
    *
    * @returns whether the answer applies; false where a later check owns the
    *   trust or an action replaced it, so the caller renders nothing
    */
   private async _checkRemembered(): Promise<boolean> {
     const trust = trustValue(this.context.model.toString());
+    const fromDisk = this._fromDisk;
+    this._fromDisk = false;
     if (!trust) {
       this._checkRun++;
+      // Only the first check after a read from disk that brought no trust
+      // value writes back. A later write of the lab that restores that text
+      // byte for byte, as another view's distrust or a lab save does, is no
+      // read from disk (DEF-VIEW-54).
+      if (
+        this._remembered &&
+        this.trusted &&
+        !this.context.model.dirty &&
+        fromDisk &&
+        this.context.contentsModel?.writable !== false
+      ) {
+        this._trustChosen.emit(true);
+        return true;
+      }
       this._rememberedFor = null;
       this._setRemembered(false);
       return true;
@@ -580,6 +770,38 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     return true;
   }
 
+  /**
+   * The follower loaded a change from disk: carry it out on the page in place
+   * where the page on screen is the page of the last render and none is
+   * being built (ACC-LIVE-101). A change the page cannot take in place is
+   * left to the settle, which renders it, and the new page tints the file
+   * text it added (ACC-LIVE-102). A change of markers alone keeps the page as
+   * it is. An edit in the lab is no follower load (ACC-LIVE-106).
+   */
+  private _onFollowerLoaded(): void {
+    const page = this._page;
+    const animator = this._animator;
+    const source = this.context.model.toString();
+    this._fromDisk = !trustValue(source);
+    if (!this._enabled || !page || !animator || this.showsSameText(source)) {
+      return;
+    }
+    if (!this._rendering && page.analysis.source === this._renderedSource) {
+      // The plan reads the page, so a change still running completes first.
+      animator.finish();
+      const after = analyse(source, page.analysis.options);
+      const change = planChange(page.document, page.analysis, after);
+      if (!('render' in change)) {
+        page.analysis = after;
+        this._renderedSource = source;
+        animator.start(change);
+        fitPage(page.window);
+        return;
+      }
+    }
+    this._tintFrom ??= page.analysis;
+  }
+
   /** Set the remembered state, telling the box when it changes. */
   private _setRemembered(value: boolean): void {
     if (this._remembered === value) {
@@ -594,6 +816,8 @@ export class AdvancedHTMLViewer extends DocumentWidget<
    * one is being built runs once more after it.
    */
   private async _render(): Promise<void> {
+    // A change running on the page lands, and its highlights leave with it.
+    this._animator?.clear();
     if (this._rendering) {
       this._again = true;
       return;
@@ -614,7 +838,8 @@ export class AdvancedHTMLViewer extends DocumentWidget<
           pageOptions(
             this.trusted,
             base,
-            this._labTrans.__('Action disabled as the file is not trusted.')
+            this._labTrans.__('Action disabled as the file is not trusted.'),
+            this._trustedHistory
           )
         );
         const shown = this._page?.window;
@@ -627,7 +852,9 @@ export class AdvancedHTMLViewer extends DocumentWidget<
         );
         this._pending = analysis;
         this._renderedSource = source;
-        this.content.url = this._url;
+        // The new page takes the fragment of the one on screen, which a deck
+        // reads its slide from (DEF-LIVE-48, DEF-LIVE-50).
+        this.content.url = this._url + (shown?.location.hash ?? '');
         if (old) {
           URL.revokeObjectURL(old);
         }
@@ -642,13 +869,20 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     const win = this.frame.contentWindow;
     let href = '';
     try {
+      // The old animator paints through the frame's window, which throws on
+      // every read once the frame shows another origin (DEF-VIEW-53).
+      this._animator?.clear();
       href = win?.location.href ?? '';
       win?.addEventListener('focus', this._giveBack, true);
     } catch {
       href = '';
     }
     this._giveBack();
-    if (!win || !this._pending || href !== this._url) {
+    this._animator = null;
+    const tintFrom = this._tintFrom;
+    this._tintFrom = null;
+    // A script may set the fragment before the load event (DEF-VIEW-51).
+    if (!win || !this._pending || href.split('#')[0] !== this._url) {
       this._page = null;
       this._pageLoaded.emit(null);
       return;
@@ -658,18 +892,41 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       document: win.document,
       analysis: this._pending
     };
+    this._animator = Object.assign(new ChangeAnimator(win), {
+      animation: this._animation,
+      highlight: this._highlight,
+      settled: () => {
+        fitPage(win);
+        this._changeSettled.emit();
+      }
+    });
+    // The release or the menu lands a change still typed in, so the selection
+    // a press made, or a right-click on one made before, can take a mark; at
+    // the press it would move the content under the pointer (DEF-MARK-55).
+    for (const type of ['pointerup', 'contextmenu']) {
+      win.addEventListener(type, () => this._animator?.finish(), true);
+    }
     // Fit before the scroll is restored: the saved offsets are in the
     // previous page's units, and the same frame width gives the same ratio,
     // so the restore lands where the reader was.
     fitPage(win);
     if (this._scroll) {
-      win.scrollTo(this._scroll.x, this._scroll.y);
+      holdScroll(win, this._scroll.x, this._scroll.y);
       this._scroll = null;
+    }
+    if (tintFrom) {
+      this._animator.tint(addedRanges(win.document, tintFrom, this._pending));
     }
     this._pageLoaded.emit(this._page);
     // A theme change that landed while the page was loading was written for
     // no document; the page takes the theme as it stands now.
     this.applyPageTheme();
+    // A change applied in place after this page's text was built leaves the
+    // page older than the file: a same-text render the change overtook, a
+    // reload, Back.
+    if (this._pending.source !== this._renderedSource) {
+      void this._render();
+    }
   }
 
   private _labTrans: TranslationBundle;
@@ -678,11 +935,21 @@ export class AdvancedHTMLViewer extends DocumentWidget<
   private _follower: Follower | null = null;
   private _cue: TabCue | null = null;
   private _tabCue = true;
+  private _enabled = true;
+  private _animation = true;
+  private _highlight = true;
+  private _animator: ChangeAnimator | null = null;
+  /** The reading of the page on screen when a change from disk had to render it again. */
+  private _tintFrom: IAnalysis | null = null;
+  private _changeSettled = new Signal<this, void>(this);
+  private _trustedHistory = true;
   private _focused: HTMLElement | null = null;
   private _url = '';
   private _pending: IAnalysis | null = null;
   private _page: IPage | null = null;
   private _renderedSource: string | null = null;
+  /** A read from disk, by the follower or Rerender, held no trust value and no check has read it yet. */
+  private _fromDisk = false;
   private _rendering = false;
   private _again = false;
   private _scroll: { x: number; y: number } | null = null;
@@ -699,6 +966,25 @@ export class AdvancedHTMLViewer extends DocumentWidget<
 }
 
 /**
+ * A toolbar button that runs its action once per press. The button component
+ * runs onClick on Enter and Space and again on the click the key makes
+ * (DEF-VIEW-52); only the click runs it, which the browser makes for a key,
+ * a mouse and assistive technology alike.
+ */
+function toolbarButton(
+  props: ToolbarButtonComponent.IProps
+): React.ReactElement {
+  return React.createElement(ToolbarButtonComponent, {
+    ...props,
+    onClick: event => {
+      if (event?.type !== 'keydown') {
+        props.onClick?.(event);
+      }
+    }
+  });
+}
+
+/**
  * The toolbar button that reads the file again and renders it, as the
  * built-in viewer's. It is built from the button component and not from
  * ToolbarButton, which flips a pressed state at every click: a one-shot
@@ -710,7 +996,7 @@ export function createRefreshButton(
 ): Widget {
   const trans = (translator ?? nullTranslator).load('jupyterlab');
   return ReactWidget.create(
-    React.createElement(ToolbarButtonComponent, {
+    toolbarButton({
       icon: refreshIcon,
       onClick: () => void viewer.refresh(),
       tooltip: trans.__('Rerender HTML Document')
@@ -731,7 +1017,7 @@ export function createFullScreenButton(
 ): Widget {
   const trans = (translator ?? nullTranslator).load('jupyterlab');
   return ReactWidget.create(
-    React.createElement(ToolbarButtonComponent, {
+    toolbarButton({
       icon: FULL_SCREEN_ICON,
       onClick: () => {
         const frame = viewer.frame;
@@ -759,7 +1045,7 @@ export function createTrustButton(
       signal: viewer.trustedChanged,
       initialSender: viewer,
       children: () =>
-        React.createElement(ToolbarButtonComponent, {
+        toolbarButton({
           className: '',
           onClick: () => viewer.chooseTrust(!viewer.trusted),
           tooltip: `${trans.__(`Whether the HTML file is trusted.
@@ -820,6 +1106,34 @@ export function createTrustToggle(
 }
 
 /**
+ * The link after the Always trust box that opens the More info dialog: a
+ * plain button styled as a link, as ACC-VIEW-97 asks.
+ */
+export function createMoreInfoButton(
+  viewer: AdvancedHTMLViewer,
+  translator?: ITranslator
+): Widget {
+  const trans = (translator ?? nullTranslator).load(
+    'jupyterlab_advanced_html_viewer_extension'
+  );
+  return ReactWidget.create(
+    React.createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'jp-AdvancedHtml-moreInfo',
+        title: trans.__(
+          'What trusting this page allows, and what the file asks for: its scripts, the hosts it loads from and the browser features its scripts name. Read from the file text; nothing of the page runs.'
+        ),
+        onClick: () =>
+          void showTrustInfo(viewer.context.model.toString(), trans)
+      },
+      trans.__('More info')
+    )
+  );
+}
+
+/**
  * Options of the viewer factory.
  */
 export interface IAdvancedHTMLViewerFactoryOptions extends DocumentRegistry.IWidgetFactoryOptions<AdvancedHTMLViewer> {
@@ -857,6 +1171,10 @@ export class AdvancedHTMLViewerFactory extends ABCWidgetFactory<
       {
         name: 'alwaysTrust',
         widget: createTrustToggle(widget, this.translator)
+      },
+      {
+        name: 'moreInfo',
+        widget: createMoreInfoButton(widget, this.translator)
       },
       {
         name: 'fullScreen',

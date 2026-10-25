@@ -159,7 +159,11 @@ export class Follower implements IDisposable {
     this._timer = window.setInterval(() => {
       // A beat that falls while a look is under way takes none, so each
       // look is signalled once however long it lasts.
-      if (document.visibilityState !== 'hidden' && !this._busy) {
+      if (
+        this._enabled &&
+        document.visibilityState !== 'hidden' &&
+        !this._busy
+      ) {
         void this.check().then(() => this._looked.emit());
       }
     }, options.interval ?? FOLLOW_MS);
@@ -167,6 +171,22 @@ export class Follower implements IDisposable {
 
   get isDisposed(): boolean {
     return this._disposed;
+  }
+
+  /**
+   * Whether the file is looked at on the beat; the `enabled` setting. On
+   * again, it is looked at at once. A look asked for with {@link check} is
+   * taken either way, as the notes controller's write asks for one.
+   */
+  get enabled(): boolean {
+    return this._enabled;
+  }
+  set enabled(value: boolean) {
+    const again = value && !this._enabled;
+    this._enabled = value;
+    if (again) {
+      void this.check();
+    }
   }
 
   /** Emitted each time the document takes a change from disk. */
@@ -264,6 +284,7 @@ export class Follower implements IDisposable {
   private _timer: number;
   private _busy: Promise<boolean> | null = null;
   private _views = 0;
+  private _enabled = true;
   private _disposed = false;
   private _loaded = new Signal<this, void>(this);
   private _looked = new Signal<this, void>(this);

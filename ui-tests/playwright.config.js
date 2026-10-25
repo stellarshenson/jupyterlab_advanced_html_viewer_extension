@@ -16,6 +16,8 @@ module.exports = {
     ...baseConfig.use,
     baseURL: BASE_URL
   },
+  // Unnamed polls take 15 s like the polls that name it, because this workstation runs other projects' suites at the same time.
+  expect: { timeout: 15000 },
   // The specs drive one server and change its settings, so they run one at a
   // time rather than racing each other.
   workers: 1,

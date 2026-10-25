@@ -787,3 +787,24 @@ body[data-jp-theme-light='false']
     content: '\25D1';
   }
 }
+
+/*
+ | The More info link after the Always trust box (ACC-VIEW-97): a button that
+ | reads as the toolbar's other text, underlined as a link. The dialog breaks
+ | a long address rather than widen past the screen.
+ */
+.jp-AdvancedHtml-moreInfo {
+  padding: 0 4px;
+  color: var(--jp-ui-font-color1);
+  font-family: var(--jp-ui-font-family);
+  font-size: var(--jp-ui-font-size1);
+  text-decoration: underline;
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.jp-AdvancedHtml-trustInfo {
+  overflow-wrap: anywhere;
+}

@@ -133,9 +133,13 @@ class WriteHandler(APIHandler):
             await ensure_async(
                 manager.save({"type": "file", "format": "text", "content": written}, path)
             )
-            model = await ensure_async(
-                manager.get(path, content=False, type="file", require_hash=True)
-            )
+            model = await ensure_async(manager.get(path, content=False, type="file"))
+        # Another process can write the file after the save: answer the hash of the bytes saved.
+        algorithm = manager.hash_algorithm
+        model.update(
+            hash=hashlib.new(algorithm, written.encode("utf-8")).hexdigest(),
+            hash_algorithm=algorithm,
+        )
         self.finish(json.dumps(model, default=json_default))
 
 

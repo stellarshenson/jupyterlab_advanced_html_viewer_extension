@@ -10,6 +10,24 @@
   "description": "Marks and notes on HTML files, stored in the file itself.",
   "type": "object",
   "properties": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Apply changes made to the file outside JupyterLab to the open page, without a reload. Off, the file is read only when you reload the page or the viewer writes a mark, a note, the panel state or the trust, and the page then shows any change it holds; marks and notes still work.",
+      "type": "boolean",
+      "default": true
+    },
+    "animation": {
+      "title": "Animate changes",
+      "description": "Type added text in letter by letter and delete removed text from its end. Off, a change appears at once.",
+      "type": "boolean",
+      "default": true
+    },
+    "highlight": {
+      "title": "Highlight changes",
+      "description": "Show added text on a green background and removed text on a red one.",
+      "type": "boolean",
+      "default": true
+    },
     "author": {
       "title": "Note handle",
       "description": "The handle written on every note line you add, without the leading @. Empty writes @user, and you are asked for a handle the first time you write a note. Set note handle in the command palette puts the same question again.",
@@ -18,7 +36,13 @@
     },
     "tabCue": {
       "title": "Tab marker",
-      "description": "Show a marker on the tab of a file that changes on disk: a half circle whose filled half swaps sides while changes arrive, and a green dot for changes that arrived while the tab was behind another. Off shows no marker.",
+      "description": "Show a marker on the tab of a file that changes on disk: a half circle whose filled half swaps sides while changes arrive, and a dot in the theme's brand colour 2 for changes that arrived while the tab was behind another. Off shows no marker.",
+      "type": "boolean",
+      "default": true
+    },
+    "trustedHistory": {
+      "title": "Let a trusted page change its address",
+      "description": "On a trusted page, its scripts may change the part of the address after # (history.pushState, history.replaceState), as slide decks do to record the slide. Off leaves the browser's refusal. An untrusted page runs no scripts, so the setting does nothing there.",
       "type": "boolean",
       "default": true
     }
