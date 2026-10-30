@@ -88,6 +88,8 @@ before-build-npm = [
     "jlpm build:prod"
 ]
 before-build-python = ["jlpm clean:all"]
+# pypiserver 2.3.2, required by jupyter-releaser on Python 3.13, answers 400 when a line break in the upload falls just below its 102400 byte memory limit
+before-publish-assets = ["python -m pip install --upgrade pypiserver"]
 
 [tool.check-wheel-contents]
 ignore = ["W002"]
