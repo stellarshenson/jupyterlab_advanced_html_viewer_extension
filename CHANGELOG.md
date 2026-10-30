@@ -2,6 +2,18 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.72] - 2026-10-31
+
+### Changed
+
+- Raise the upload limit of the mock PyPI instead of upgrading it
+- Upgrade pypiserver before the check release upload
+- Upgrade to extension template v4.6.5 and Makefile 1.46
+
+### Fixed
+
+- Take the scoped @stellarshenson/jupyterlab-advanced-html-viewer-extension npm name
+
 ## [1.0.69] - 2026-10-25
 
 ### Added
