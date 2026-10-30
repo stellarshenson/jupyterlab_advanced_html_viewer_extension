@@ -151,7 +151,7 @@ test('ACC-VIEW-95 turning trustedHistory off takes the page script off an open t
     })
   );
   const box = page.locator(
-    `#jp-SettingsEditor-${PLUGIN_ID.replace(':', '\\:')}_trustedHistory`
+    `[id="jp-SettingsEditor-${PLUGIN_ID}_trustedHistory"]`
   );
   await expect(box).toBeChecked();
   await box.uncheck();

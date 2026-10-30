@@ -966,10 +966,10 @@ export class AdvancedHTMLViewer extends DocumentWidget<
 }
 
 /**
- * A toolbar button that runs its action once per press. The button component
- * runs onClick on Enter and Space and again on the click the key makes
- * (DEF-VIEW-52); only the click runs it, which the browser makes for a key,
- * a mouse and assistive technology alike.
+ * A toolbar button that runs its action once per press. Before JupyterLab
+ * 4.6.5 the button component runs onClick on Enter and Space and again on the
+ * click the key makes (DEF-VIEW-52), so only the click runs it. From 4.6.5 the
+ * component prevents that click, so the prevented key runs it.
  */
 function toolbarButton(
   props: ToolbarButtonComponent.IProps
@@ -977,7 +977,7 @@ function toolbarButton(
   return React.createElement(ToolbarButtonComponent, {
     ...props,
     onClick: event => {
-      if (event?.type !== 'keydown') {
+      if (event?.type !== 'keydown' || event.defaultPrevented) {
         props.onClick?.(event);
       }
     }

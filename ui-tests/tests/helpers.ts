@@ -15,7 +15,8 @@ import { expect, galata } from '@jupyterlab/galata';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export const PLUGIN_ID = 'jupyterlab_advanced_html_viewer_extension:plugin';
+export const PLUGIN_ID =
+  '@stellarshenson/jupyterlab-advanced-html-viewer-extension:plugin';
 export const FACTORY = 'Advanced HTML Viewer';
 export const FRAME = '.jp-AdvancedHTMLViewer iframe';
 

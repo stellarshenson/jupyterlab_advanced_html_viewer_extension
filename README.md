@@ -1,7 +1,7 @@
 # jupyterlab_advanced_html_viewer_extension
 
 [![GitHub Actions](https://github.com/stellarshenson/jupyterlab_advanced_html_viewer_extension/actions/workflows/build.yml/badge.svg)](https://github.com/stellarshenson/jupyterlab_advanced_html_viewer_extension/actions/workflows/build.yml)
-[![npm version](https://img.shields.io/npm/v/jupyterlab_advanced_html_viewer_extension.svg)](https://www.npmjs.com/package/jupyterlab_advanced_html_viewer_extension)
+[![npm version](https://img.shields.io/npm/v/@stellarshenson/jupyterlab-advanced-html-viewer-extension.svg)](https://www.npmjs.com/package/@stellarshenson/jupyterlab-advanced-html-viewer-extension)
 [![PyPI version](https://img.shields.io/pypi/v/jupyterlab-advanced-html-viewer-extension.svg)](https://pypi.org/project/jupyterlab-advanced-html-viewer-extension/)
 [![Total PyPI downloads](https://static.pepy.tech/badge/jupyterlab-advanced-html-viewer-extension)](https://pepy.tech/project/jupyterlab-advanced-html-viewer-extension)
 [![JupyterLab 4](https://img.shields.io/badge/JupyterLab-4-orange.svg)](https://jupyterlab.readthedocs.io/en/stable/)

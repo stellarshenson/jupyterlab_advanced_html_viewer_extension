@@ -8,7 +8,7 @@ has_ai_rules: false
 has_binder: false
 has_settings: true
 kind: frontend-and-server
-labextension_name: jupyterlab_advanced_html_viewer_extension
+labextension_name: '@stellarshenson/jupyterlab-advanced-html-viewer-extension'
 project_short_description: HTML viewer with trust, refresh, marks and notes stored
     in the file
 python_name: jupyterlab_advanced_html_viewer_extension

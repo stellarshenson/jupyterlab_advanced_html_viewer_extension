@@ -891,9 +891,7 @@ async function settingBox(page: any, key: string) {
       query: 'Advanced HTML Viewer'
     })
   );
-  const box = page.locator(
-    `#jp-SettingsEditor-${PLUGIN_ID.replace(':', '\\:')}_${key}`
-  );
+  const box = page.locator(`[id="jp-SettingsEditor-${PLUGIN_ID}_${key}"]`);
   await expect(box).toBeVisible();
   return box;
 }

@@ -66,7 +66,8 @@ import {
 } from './viewer';
 
 /** The plugin identifier, which is also the settings identifier. */
-const PLUGIN_ID = 'jupyterlab_advanced_html_viewer_extension:plugin';
+const PLUGIN_ID =
+  '@stellarshenson/jupyterlab-advanced-html-viewer-extension:plugin';
 
 /** The settings of the built-in viewer, whose trustByDefault this one honours. */
 const BUILT_IN_ID = '@jupyterlab/htmlviewer-extension:plugin';
@@ -173,7 +174,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     _builtIn: IHTMLViewerTracker | null
   ) => {
     console.log(
-      'JupyterLab extension jupyterlab_advanced_html_viewer_extension is activated!'
+      'JupyterLab extension @stellarshenson/jupyterlab-advanced-html-viewer-extension is activated!'
     );
     const labTranslator = translator ?? nullTranslator;
     const trans = labTranslator.load(

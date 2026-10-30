@@ -43,7 +43,7 @@ test.describe('activation', () => {
       logs.filter(
         text =>
           text ===
-          'JupyterLab extension jupyterlab_advanced_html_viewer_extension is activated!'
+          'JupyterLab extension @stellarshenson/jupyterlab-advanced-html-viewer-extension is activated!'
       )
     ).toHaveLength(1);
   });
@@ -1450,9 +1450,7 @@ test('ACC-LIVE-81 the Tab marker setting takes the marker off the tab and shows 
       query: 'Advanced HTML Viewer'
     })
   );
-  const box = page.locator(
-    `#jp-SettingsEditor-${PLUGIN_ID.replace(':', '\\:')}_tabCue`
-  );
+  const box = page.locator(`[id="jp-SettingsEditor-${PLUGIN_ID}_tabCue"]`);
   await expect(box).toBeChecked();
   // The viewer is behind the settings editor, so the change is unread and
   // its unread marker stays for as long as the setting is on.
