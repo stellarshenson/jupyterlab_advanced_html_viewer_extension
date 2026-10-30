@@ -34,7 +34,7 @@ dev = [
 ]
 test = [
     "coverage",  # not installed locally - stays unpinned until it is run
-    "pytest>=9.1,<10",
+    "pytest>=9.2,<10",
     "pytest-asyncio>=1.4,<2",
     "pytest-cov",  # not installed locally - stays unpinned until it is run
     "pytest-jupyter[server]>=0.11,<1"
