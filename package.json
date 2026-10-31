@@ -1,6 +1,6 @@
 {
     "name": "@stellarshenson/jupyterlab-advanced-html-viewer-extension",
-    "version": "1.0.74",
+    "version": "1.0.75",
     "description": "HTML viewer with trust, refresh, marks and notes stored in the file",
     "keywords": [
         "jupyter",
