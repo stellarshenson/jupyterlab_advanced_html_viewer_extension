@@ -545,6 +545,10 @@ Writing marks and notes into the file
   - log: 2026-10-24T18:17:47Z @kj edited text "the write route answers the hash it reads back after saving; an outside write landing before that read makes the viewer record the outside text's hash as its own, so the follower never loads it and the next marker edit is applied to the outside text; jupyter_advanced_html_viewer_extension/routes.py:136-138" -> "the write route answers the hash it reads back after saving; an outside write landing before that read makes the viewer record the outside text's hash as its own, so the follower never loads it and the next marker edit is applied to the outside text; jupyterlab_advanced_html_viewer_extension/routes.py:136-138"; reason: package name in the path was wrong
   - log: 2026-10-25T00:28:26Z @kj closed
   - log: 2026-10-25T00:28:54Z @kj edited evidence "route answers the hash of the bytes it wrote; pytest post_save_hook red then green, 30 of 30; Galata DEF-STORE-62 green; full suite 155 passed (logs/galata-timeout-full.log)" -> "route answers the hash of the bytes it wrote; pytest post_save_hook red then green, 30 of 30; the Galata case DEF-STORE-62-READ-BACK green (ui-tests/tests/live.spec.ts); full suite 155 passed (logs/galata-timeout-full.log)"
+- [ ] `DEF-STORE-65-SERVER-AWAY` **Save does nothing while the server is away** - MEDIUM; reader saves a note, marks, recolours or closes a mark while the Jupyter server does not answer: nothing is written, nothing is said, console shows an unhandled rejection; `src/notes.ts` _write
+  - repro: stop the server, press Save on a note
+  - test-tags: UNIT
+  - log: 2026-11-13T10:33:26Z @kj added
 
 ## Build and checks `BUILD`
 
@@ -557,4 +561,7 @@ lint, packaging and the checks CI runs
   - root-cause: 2026-10-02T08:35:26Z @kj activation uses the four modules at once and three of them load with ./notes-panel anyway; labTrans is the bundle of JupyterLab's own catalogue, named apart from trans on purpose
   - log: 2026-10-02T08:35:26Z @kj added
   - log: 2026-10-02T08:36:13Z @kj closed
+- [ ] `DEF-BUILD-66-DEAD-EXPORTS` **Three exports nothing reads** - MINOR; COPY_ICON and LINK_ICON in `src/icons.ts` and swatchFallback in `src/swatch.ts` have no reader in src, tests or ui-tests; fix: delete them
+  - repro: grep -rw COPY_ICON LINK_ICON swatchFallback src ui-tests
+  - log: 2026-11-13T10:33:26Z @kj added
 

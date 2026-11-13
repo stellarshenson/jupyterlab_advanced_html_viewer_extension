@@ -128,6 +128,18 @@ describe('writing a marker to disk', () => {
     expect(viewer.state.text.match(/marks:settings/g)).toHaveLength(1);
   });
 
+  it('DEF-STORE-65 writes nothing and rejects nothing where the server does not answer', async () => {
+    const viewer = fakeViewer(PAGE);
+    fetchMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+    const error = jest.spyOn(console, 'error').mockImplementation();
+    const controller = await controllerOf(viewer);
+    await expect(controller.markDocument()).resolves.toBeNull();
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+    expect(viewer.state.text).toBe(PAGE);
+    expect(viewer.context.save).not.toHaveBeenCalled();
+  });
+
   it('saves through the context where the server extension is absent', async () => {
     const viewer = fakeViewer(PAGE);
     fetchMock.mockResolvedValueOnce(answer(404, '<html>not found</html>'));

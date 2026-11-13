@@ -52,7 +52,7 @@ import { openingState } from './notes-panel';
 import { PageMap, SelectionResult } from './origin';
 import { pageThemeStyle } from './page-theme';
 import { CLOSED_HIGHLIGHT, flash, highlightName, paint } from './paint';
-import { fetchAPI, trustSignature } from './request';
+import { fetchAPI, IAnswer, trustSignature } from './request';
 import { analyse, IAnalysis, passageText } from './source';
 import {
   applyEdits,
@@ -88,6 +88,10 @@ export const TOOLTIP_CLASS = 'jp-AdvancedHtml-tooltip';
 
 /** What the reader is told when page content is marked from the keyboard. */
 export const REFUSAL_MESSAGE = 'Only text written in the file takes a comment.';
+
+/** What the reader is told when a write finds the server away. */
+const UNREACHABLE_MESSAGE =
+  'Not saved: the Jupyter server did not answer. Try again once it is back.';
 
 /** How long the page must stay still after a script changed it. */
 const MUTATION_SETTLE_MS = 150;
@@ -1108,18 +1112,24 @@ export class NotesController implements IDisposable {
       const unsaved = model.dirty;
       const expected = context.contentsModel?.hash;
       if (!unsaved && route && typeof expected === 'string') {
-        const { response, data } = await fetchAPI(
-          'write',
-          this._serverSettings,
-          {
+        let answer: IAnswer;
+        try {
+          answer = await fetchAPI('write', this._serverSettings, {
             method: 'POST',
             body: JSON.stringify({
               path: context.localPath,
               expected,
               edits: changes
             })
-          }
-        );
+          });
+        } catch (reason) {
+          // The server did not answer: nothing is written, the reader is told
+          // and a note being saved stays in its field (DEF-STORE-65).
+          console.error('The write route did not answer.', reason);
+          Notification.error(UNREACHABLE_MESSAGE, { autoClose: 5000 });
+          return false;
+        }
+        const { response, data } = answer;
         if (response.status === 409) {
           if (++refusals < 3) {
             await this._viewer.follower?.check();

@@ -450,15 +450,6 @@ export function swatchRimming(hue: string, backgrounds: Rgb[]): string {
   return swatchFilling(hue, backgrounds);
 }
 
-/**
- * The colour a swatch's rim falls back to where the properties are not on
- * the page: the light theme's own answer, which is what the stylesheet
- * names.
- */
-export function swatchFallback(colour: MarkColour): string {
-  return swatchBarring(HUE[colour], LIGHT_BACKGROUNDS);
-}
-
 /** The colour a swatch's edge falls back to, the light theme's answer again. */
 export function swatchEdgeFallback(colour: MarkColour): string {
   return swatchRimming(HUE[colour], LIGHT_BACKGROUNDS);
