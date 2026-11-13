@@ -549,6 +549,10 @@ Writing marks and notes into the file
   - repro: stop the server, press Save on a note
   - test-tags: UNIT
   - log: 2026-11-13T10:33:26Z @kj added
+- [ ] `DEF-STORE-67-READ-ONLY` **Comment on a read-only file raises a File Save Error** - MEDIUM; reader marks, comments or switches the notes panel on a file the lab cannot write: route answers 403, the controller saves through the document, JupyterLab shows File Save Error, the tab stays unsaved, the follower and Rerender stop; DEF-VIEW-35 fixed this for trust only; `src/notes.ts` _write
+  - repro: chmod 0444 an html file, open it, select text, Add Comment
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-11-13T18:02:34Z @kj added
 
 ## Build and checks `BUILD`
 

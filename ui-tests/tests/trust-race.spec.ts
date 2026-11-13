@@ -101,6 +101,15 @@ const modelText = (page: any): Promise<string> =>
       ).jupyterapp.shell.currentWidget?.context?.model?.toString() ?? ''
   );
 
+/** Change the open document in the lab, as an editor on the file would. */
+const editInLab = (page: any): Promise<void> =>
+  page.evaluate(() => {
+    const model = (window as any).jupyterapp.shell.currentWidget.context.model;
+    model.sharedModel.setSource(
+      `${model.toString()}<!-- edited in the lab -->\n`
+    );
+  });
+
 /** The trust signature a file's settings marker carries, or null. */
 const trustIn = (apiPath: string): string | null =>
   /<!-- marks:settings [^>]*trust=([0-9a-f]{64}) -->/.exec(
@@ -354,11 +363,22 @@ test('DEF-VIEW-44 a distrust of a read-only remembered file survives the next se
       .toBe(true);
     await expect(alwaysTrustBox(page)).not.toBeChecked();
 
-    // A comment changes the model although the save is refused; the settle
-    // must not trust the page from the signature the file still holds.
+    // A read-only file takes no comment: the reader is told, the document
+    // stays as it is and no save is tried (DEF-STORE-67).
     await openMenu(page, await select(page, 'Text written in the file.'));
     await choose(page, 'Add Comment');
-    await expect.poll(() => modelText(page)).toContain('mark:');
+    await expect(
+      page.getByText('Not saved: the file is read-only.')
+    ).toBeVisible();
+    expect(await modelText(page)).not.toContain('mark:');
+    await expect(page.getByText('File Save Error')).toHaveCount(0);
+    await expect(page.locator('.lm-TabBar-tab.jp-mod-dirty')).toHaveCount(0);
+
+    // An edit in the lab changes the model although the file cannot be
+    // saved; the settle must not trust the page from the signature the file
+    // still holds.
+    await editInLab(page);
+    await expect.poll(() => modelText(page)).toContain('edited in the lab');
     await page.waitForTimeout(2500);
     const sandbox = await page
       .locator(`${SHOWN} iframe`)
@@ -416,12 +436,11 @@ test.describe('with the built-in viewer trusting by default', () => {
         .not.toContain('Written by a script.');
       await expect.poll(route.answers, { timeout: 30000 }).toBe(1);
 
-      // A comment changes the model although the file cannot be saved; the
-      // settle checks the marker again, through the route rather than a
-      // cache entry. The answer must not lift the session distrust.
-      await openMenu(page, await select(page, 'Text written in the file.'));
-      await choose(page, 'Add Comment');
-      await expect.poll(() => modelText(page)).toContain('mark:');
+      // An edit in the lab changes the model although the file cannot be
+      // saved; the settle checks the marker again, through the route rather
+      // than a cache entry. The answer must not lift the session distrust.
+      await editInLab(page);
+      await expect.poll(() => modelText(page)).toContain('edited in the lab');
       await expect.poll(route.answers, { timeout: 30000 }).toBe(2);
       await page.waitForTimeout(2000);
 

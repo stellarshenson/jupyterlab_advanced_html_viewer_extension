@@ -240,6 +240,19 @@ describe('writing a marker to disk', () => {
     expect(viewer.setRemembered).not.toHaveBeenCalled();
   });
 
+  it('DEF-STORE-67 writes no mark and no panel state into a file the lab cannot write', async () => {
+    const viewer = fakeViewer(PAGE);
+    viewer.context.contentsModel.writable = false;
+    const controller = await controllerOf(viewer);
+    await expect(controller.markDocument()).resolves.toBeNull();
+    await controller.setPanelState('minimap');
+    // The panel follows for the session; the file and the document do not.
+    expect(controller.panelState).toBe('minimap');
+    expect(viewer.state.text).toBe(PAGE);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(viewer.context.save).not.toHaveBeenCalled();
+  });
+
   it('ACC-VIEW-85 writes nothing where the route gives no signature', async () => {
     const viewer = fakeViewer(PAGE);
     signatureMock.mockResolvedValue(null);

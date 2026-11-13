@@ -93,6 +93,9 @@ export const REFUSAL_MESSAGE = 'Only text written in the file takes a comment.';
 const UNREACHABLE_MESSAGE =
   'Not saved: the Jupyter server did not answer. Try again once it is back.';
 
+/** What the reader is told when a mark or a note meets a read-only file. */
+const READ_ONLY_MESSAGE = 'Not saved: the file is read-only.';
+
 /** How long the page must stay still after a script changed it. */
 const MUTATION_SETTLE_MS = 150;
 
@@ -547,6 +550,12 @@ export class NotesController implements IDisposable {
    * panel by whether it has marks.
    */
   private async _writeSettings(trust?: string | null): Promise<boolean> {
+    // A file the lab cannot write keeps the panel state for the session only,
+    // and says nothing: the reader asked for the panel, not for a write
+    // (DEF-STORE-67).
+    if (this._viewer.context.contentsModel?.writable === false) {
+      return false;
+    }
     this._settingsWrites++;
     try {
       return await this._write(source => {
@@ -1107,6 +1116,13 @@ export class NotesController implements IDisposable {
       const source = model.toString();
       const changes = edits(source);
       if (!changes.length) {
+        return false;
+      }
+      // A file the lab cannot write takes no marker: the route would answer
+      // 403 and the save through the document a File Save Error
+      // (DEF-STORE-67).
+      if (context.contentsModel?.writable === false) {
+        Notification.warning(READ_ONLY_MESSAGE, { autoClose: 5000 });
         return false;
       }
       const unsaved = model.dirty;
