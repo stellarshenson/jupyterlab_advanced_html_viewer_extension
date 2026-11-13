@@ -247,6 +247,44 @@ test('DEF-VIEW-54 a distrust in one of two views is not undone by the other', as
   await expect(boxes.nth(1)).not.toBeChecked();
 });
 
+test('DEF-VIEW-54-TWO-VIEWS-1 a distrust whose write answers slowly is not read as a change from disk', async ({
+  page,
+  tmpPath
+}) => {
+  test.setTimeout(90000);
+  const file = fixture(tmpPath, 'keep-slow-write');
+  writeFile(file, pageOf('plain'));
+  await openViewer(page, file, 'The first version.');
+  await page.evaluate(() =>
+    (window as any).jupyterapp.commands.execute('docmanager:clone')
+  );
+  const boxes = alwaysTrustBox(page);
+  await expect(boxes).toHaveCount(2);
+  await boxes.nth(0).click();
+  await expect.poll(() => trustIn(file), { timeout: 10000 }).not.toBeNull();
+  await expect(boxes.nth(0)).toBeChecked();
+  await expect(boxes.nth(1)).toBeChecked();
+  // The trust render, the signature write and its settle.
+  await page.waitForTimeout(3000);
+  // The route's answer is held back past a beat of the follower: the file
+  // holds the write while the document does not know it yet.
+  await page.route(
+    '**/jupyterlab-advanced-html-viewer-extension/write**',
+    async (route: any) => {
+      const response = await route.fetch();
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await route.fulfill({ response });
+    }
+  );
+  await boxes.nth(0).click();
+  await expect(boxes.nth(0)).not.toBeChecked();
+  await expect.poll(() => trustIn(file), { timeout: 10000 }).toBeNull();
+  // The held answer, the settle and the write a write-back would make.
+  await page.waitForTimeout(6000);
+  expect(trustIn(file)).toBeNull();
+  await expect(boxes.nth(1)).not.toBeChecked();
+});
+
 test('DEF-VIEW-49 a change that carries another trust value clears the box and is left as it is', async ({
   page,
   tmpPath

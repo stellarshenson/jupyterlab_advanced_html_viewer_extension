@@ -1130,7 +1130,7 @@ export class NotesController implements IDisposable {
       if (!unsaved && route && typeof expected === 'string') {
         let answer: IAnswer;
         try {
-          answer = await fetchAPI('write', this._serverSettings, {
+          const sent = fetchAPI('write', this._serverSettings, {
             method: 'POST',
             body: JSON.stringify({
               path: context.localPath,
@@ -1138,6 +1138,9 @@ export class NotesController implements IDisposable {
               edits: changes
             })
           });
+          // The follower's beat takes no look until the answer is recorded,
+          // or it would load this write as a change from disk.
+          answer = await (this._viewer.follower?.hold(sent) ?? sent);
         } catch (reason) {
           // The server did not answer: nothing is written, the reader is told
           // and a note being saved stays in its field (DEF-STORE-65).

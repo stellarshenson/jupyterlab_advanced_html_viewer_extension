@@ -162,7 +162,8 @@ export class Follower implements IDisposable {
       if (
         this._enabled &&
         document.visibilityState !== 'hidden' &&
-        !this._busy
+        !this._busy &&
+        this._writes === 0
       ) {
         void this.check().then(() => this._looked.emit());
       }
@@ -221,6 +222,23 @@ export class Follower implements IDisposable {
       this._busy = null;
     });
     return this._busy;
+  }
+
+  /**
+   * Take no look at the beat while a write of the viewer is on its way to the
+   * server (DEF-VIEW-54-TWO-VIEWS-1). The file holds the write before the
+   * document records its revision, and a look in between would load the
+   * viewer's own write as a change another process made. A look asked for
+   * with {@link check} is taken either way: the write of another view asks
+   * for one, and must not wait for this one.
+   */
+  async hold<T>(write: Promise<T>): Promise<T> {
+    this._writes++;
+    try {
+      return await write;
+    } finally {
+      this._writes--;
+    }
   }
 
   private async _check(): Promise<boolean> {
@@ -284,6 +302,7 @@ export class Follower implements IDisposable {
   private _timer: number;
   private _busy: Promise<boolean> | null = null;
   private _views = 0;
+  private _writes = 0;
   private _enabled = true;
   private _disposed = false;
   private _loaded = new Signal<this, void>(this);

@@ -131,6 +131,34 @@ describe('following the file on disk', () => {
     }
   });
 
+  it('DEF-VIEW-54-TWO-VIEWS-1 takes no look at its interval while a write of the viewer is held', async () => {
+    jest.useFakeTimers();
+    try {
+      const context = fakeContext('<p>old</p>');
+      const contents = fakeContents('<p>new</p>', 'h2');
+      const follower = new Follower({ context, contents, interval: 2000 });
+      followers.push(follower);
+      let answer: (value: string) => void = () => undefined;
+      const held = follower.hold(
+        new Promise<string>(resolve => {
+          answer = resolve;
+        })
+      );
+      await jest.advanceTimersByTimeAsync(4000);
+      expect(contents.get).not.toHaveBeenCalled();
+      // A look asked for is taken either way, as the write of another view
+      // asks for one.
+      expect(await follower.check()).toBe(true);
+      answer('written');
+      expect(await held).toBe('written');
+      contents.get.mockClear();
+      await jest.advanceTimersByTimeAsync(2000);
+      expect(contents.get).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('ACC-LIVE-100 takes no look at its interval while Enabled is off, one at once when it is on again, and those asked for either way', async () => {
     jest.useFakeTimers();
     try {

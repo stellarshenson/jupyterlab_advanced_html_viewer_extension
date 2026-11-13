@@ -155,6 +155,12 @@ The sandboxed frame, trust, refresh and rendering the page again
   - log: 2026-10-24T07:22:54Z @kj added
   - log: 2026-10-24T07:23:02Z @kj root-cause updated "2026-10-24T07:22:54Z @kj the ACC-VIEW-98 write-back reads a clean model as a change from disk; another view's route write and a lab save also leave the model clean" -> "the ACC-VIEW-98-KEEP write-back reads a clean model as a change from disk; another view's route write and a lab save also leave the model clean"
   - log: 2026-10-25T00:28:26Z @kj closed
+  - log: 2026-11-13T18:22:41Z @kj regressed as DEF-VIEW-54-TWO-VIEWS-1
+- [x] `DEF-VIEW-54-TWO-VIEWS-1` **Distrust in one view is undone by the other view** - MAJOR; with a file open in two views and Always trust checked, Distrust or clearing the box in one view writes the trust line out, and within 1 s the other view writes the signature back, so the file opens trusted again
+  - evidence: Follower.hold stops the beat while a route write is in flight; Galata trust-keep 'DEF-VIEW-54-TWO-VIEWS-1 a distrust whose write answers slowly' red before the fix (signature written back), green after; Jest follow.spec case green; full suite on 1.0.79: Jest 406, pytest 41, Galata 156, none rerun
+  - root-cause: 2026-11-13T18:50:05Z @kj the server holds a route write before the document records its revision; a 2 s beat of the follower in between loads the viewer's own write as a change from disk and _onFollowerLoaded sets _fromDisk, which the other view's write-back reads
+  - log: 2026-11-13T18:22:41Z @kj regression of DEF-VIEW-54-TWO-VIEWS: regression: with the write route's answer held 3 s the follower loads the viewer's own distrust write as a change from disk and view B writes the signature back; seen once in the full Galata run at load average 38 (trust-keep.spec.ts:247), then reproduced 1 of 1 with the held answer; reason: names the load failure and the reproduction
+  - log: 2026-11-13T18:50:06Z @kj closed
 - [x] `DEF-VIEW-57-INFO-ORDER` **More info lists the most serious consequence last** - MINOR; the dialog lists that the page's scripts can read and change the lab with the reader's access after scripts run and pop-ups; its inline-script definition leaves out the javascript: addresses it counts
   - evidence: lab access first, javascript: addresses named; Galata trust-info.spec green; full suite 155 passed
   - repro: open More info on any page; read the first part
@@ -545,14 +551,20 @@ Writing marks and notes into the file
   - log: 2026-10-24T18:17:47Z @kj edited text "the write route answers the hash it reads back after saving; an outside write landing before that read makes the viewer record the outside text's hash as its own, so the follower never loads it and the next marker edit is applied to the outside text; jupyter_advanced_html_viewer_extension/routes.py:136-138" -> "the write route answers the hash it reads back after saving; an outside write landing before that read makes the viewer record the outside text's hash as its own, so the follower never loads it and the next marker edit is applied to the outside text; jupyterlab_advanced_html_viewer_extension/routes.py:136-138"; reason: package name in the path was wrong
   - log: 2026-10-25T00:28:26Z @kj closed
   - log: 2026-10-25T00:28:54Z @kj edited evidence "route answers the hash of the bytes it wrote; pytest post_save_hook red then green, 30 of 30; Galata DEF-STORE-62 green; full suite 155 passed (logs/galata-timeout-full.log)" -> "route answers the hash of the bytes it wrote; pytest post_save_hook red then green, 30 of 30; the Galata case DEF-STORE-62-READ-BACK green (ui-tests/tests/live.spec.ts); full suite 155 passed (logs/galata-timeout-full.log)"
-- [ ] `DEF-STORE-65-SERVER-AWAY` **Save does nothing while the server is away** - MEDIUM; reader saves a note, marks, recolours or closes a mark while the Jupyter server does not answer: nothing is written, nothing is said, console shows an unhandled rejection; `src/notes.ts` _write
+- [x] `DEF-STORE-65-SERVER-AWAY` **Save does nothing while the server is away** - MEDIUM; reader saves a note, marks, recolours or closes a mark while the Jupyter server does not answer: nothing is written, nothing is said, console shows an unhandled rejection; `src/notes.ts` _write
+  - evidence: _write catches, notifies and answers false; jest notes.spec 'DEF-STORE-65 writes nothing and rejects nothing where the server does not answer' green; build_test on 1.0.77: Jest 405, pytest 41, Galata 155; commit 6e128c6
+  - root-cause: 2026-11-13T18:19:11Z @kj _write awaited fetchAPI with no catch; fetchAPI throws NetworkError when the server does not answer, and the panel handlers call the write with void
   - repro: stop the server, press Save on a note
   - test-tags: UNIT
   - log: 2026-11-13T10:33:26Z @kj added
-- [ ] `DEF-STORE-67-READ-ONLY` **Comment on a read-only file raises a File Save Error** - MEDIUM; reader marks, comments or switches the notes panel on a file the lab cannot write: route answers 403, the controller saves through the document, JupyterLab shows File Save Error, the tab stays unsaved, the follower and Rerender stop; DEF-VIEW-35 fixed this for trust only; `src/notes.ts` _write
+  - log: 2026-11-13T18:19:11Z @kj closed
+- [x] `DEF-STORE-67-READ-ONLY` **Comment on a read-only file raises a File Save Error** - MEDIUM; reader marks, comments or switches the notes panel on a file the lab cannot write: route answers 403, the controller saves through the document, JupyterLab shows File Save Error, the tab stays unsaved, the follower and Rerender stop; DEF-VIEW-35 fixed this for trust only; `src/notes.ts` _write
+  - evidence: _write stops before the route with a notification, _writeSettings silently; jest notes.spec 'DEF-STORE-67 writes no mark and no panel state into a file the lab cannot write' green; Galata trust-race.spec.ts:311 asserts the notification, no mark, no File Save Error, no unsaved tab; Galata 155 on 1.0.77
+  - root-cause: 2026-11-13T18:19:11Z @kj _write never read contentsModel.writable; setTrust alone had the guard (DEF-VIEW-35), so every other write met the 403 and fell back to context.save()
   - repro: chmod 0444 an html file, open it, select text, Add Comment
   - test-tags: UNIT, FUNCTIONAL
   - log: 2026-11-13T18:02:34Z @kj added
+  - log: 2026-11-13T18:19:11Z @kj closed
 
 ## Build and checks `BUILD`
 
@@ -565,7 +577,10 @@ lint, packaging and the checks CI runs
   - root-cause: 2026-10-02T08:35:26Z @kj activation uses the four modules at once and three of them load with ./notes-panel anyway; labTrans is the bundle of JupyterLab's own catalogue, named apart from trans on purpose
   - log: 2026-10-02T08:35:26Z @kj added
   - log: 2026-10-02T08:36:13Z @kj closed
-- [ ] `DEF-BUILD-66-DEAD-EXPORTS` **Three exports nothing reads** - MINOR; COPY_ICON and LINK_ICON in `src/icons.ts` and swatchFallback in `src/swatch.ts` have no reader in src, tests or ui-tests; fix: delete them
+- [x] `DEF-BUILD-66-DEAD-EXPORTS` **Three exports nothing reads** - MINOR; COPY_ICON and LINK_ICON in `src/icons.ts` and swatchFallback in `src/swatch.ts` have no reader in src, tests or ui-tests; fix: delete them
+  - evidence: the three exports and their two imports deleted; grep -rw finds no name left in src or ui-tests; tsc, lint and Jest 405 green on 1.0.77; commit 6e128c6
+  - root-cause: 2026-11-13T18:19:11Z @kj likely cause: icons.ts and swatch.ts were ported whole from the Markdown viewer, whose panel reads these three; this panel never did
   - repro: grep -rw COPY_ICON LINK_ICON swatchFallback src ui-tests
   - log: 2026-11-13T10:33:26Z @kj added
+  - log: 2026-11-13T18:19:11Z @kj closed
 
