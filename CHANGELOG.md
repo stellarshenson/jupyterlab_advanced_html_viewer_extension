@@ -2,6 +2,21 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.82] - 2026-11-16
+
+### Changed
+
+- Leave the PayPal link out of the link check
+
+### Fixed
+
+- Scroll again on a second click on the same in-page link
+- Keep an edited note in its field when the write is refused
+- Keep a link to a place in the file inside the viewer's page
+- Take no look at the file while a write of the viewer is on its way
+- Refuse a mark on a read-only file and say so
+- Tell the reader when a write finds the server away
+
 ## [1.0.75] - 2026-10-31
 
 ### Changed
