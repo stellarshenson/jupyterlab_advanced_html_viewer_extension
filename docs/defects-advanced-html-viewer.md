@@ -181,6 +181,14 @@ The sandboxed frame, trust, refresh and rendering the page again
   - log: 2026-10-24T19:31:38Z @kj added
   - log: 2026-10-24T19:31:47Z @kj edited repro "run the full Galata suite on 1.0.67: the read-only distrust test of trust-race.spec.ts:302 failed 1 of 3 full runs at :353" -> "run the full Galata suite: the read-only distrust test of trust-race.spec.ts:302 fails at :353 in some full runs (3 seen since 2026-10-21), and passed 25 of 25 alone"; reason: repro count was wrong
   - log: 2026-10-25T00:28:27Z @kj closed
+- [x] `DEF-VIEW-69-PAGE-LINK` **In-page link takes the frame out of the viewer's page** - MAJOR; a click on a link to a place in the file (href="#...", table of contents, footnote) loads the file's own address in the frame; marks, Mark and Add Comment are gone until Rerender HTML Document; `src/viewer.ts`
+  - evidence: Galata history.spec.ts case 'a link to a place in the file keeps the page in the viewer' failed on the 1.0.79 build, passes at 1.0.80; build_test.py 2026-11-16: Jest 407, pytest 41, Galata 157; src/viewer.ts _onLoad
+  - root-cause: 2026-11-16T06:21:15Z @kj the page's base element is the file's address, so href="#place" resolves to the file itself and the click loads it in the frame; the load is not the viewer's blob page, so _onLoad sets the page to null
+  - repro: open a file with a mark and <a href="#findings">, click the link
+  - test-tags: FUNCTIONAL
+  - log: 2026-11-16T06:07:00Z @kj added
+  - log: 2026-11-16T06:21:15Z @kj closed
+  - log: 2026-11-16T06:21:36Z @kj edited evidence "Galata history.spec.ts DEF-VIEW-69 failed on the 1.0.79 build (frame left for the file's address), passes at 1.0.80; build_test.py 2026-11-16: Jest 407, pytest 41, Galata 157; a plain click on such a link sets the frame's own fragment, src/viewer.ts _onLoad" -> "Galata history.spec.ts case 'a link to a place in the file keeps the page in the viewer' failed on the 1.0.79 build, passes at 1.0.80; build_test.py 2026-11-16: Jest 407, pytest 41, Galata 157; src/viewer.ts _onLoad"
 
 ## Where text comes from `ORIGIN`
 
@@ -431,6 +439,13 @@ The list of marks and their notes beside the page
   - test-tags: FUNCTIONAL
   - log: 2026-10-18T13:08:10Z @kj added
   - log: 2026-10-19T12:41:37Z @kj closed: fixed and released in 1.0.52
+- [x] `DEF-PANEL-68-EDIT-KEPT` **Edited note loses its text when the write is refused** - MEDIUM; Save on an edited note closes the field and discards the typed text when the write answers false (server away, read-only file), while the toast says to try again; a new note stays in its field; `src/notes-panel.ts`
+  - evidence: Jest src/__tests__/notes-panel.spec.ts failed before the change (no textarea after Save), passes after; build_test.py 2026-11-16: Jest 407, pytest 41, Galata 157; the field closes only when the write answered true
+  - root-cause: 2026-11-16T06:21:15Z @kj NotesPanel._form closed the field on any answer of editNote when the entry was an edit (saved || entry.editing), so a false answer dropped the held text
+  - repro: edit a note on a read-only file, change the text, Save
+  - test-tags: UNIT
+  - log: 2026-11-16T06:06:55Z @kj added
+  - log: 2026-11-16T06:21:15Z @kj closed
 
 ## Functional tests `TEST`
 

@@ -1343,9 +1343,8 @@ export class NotesPanel extends Widget {
         ? this._handlers.editNote(entry.id, entry.editing, written)
         : this._handlers.addNote(entry.id, written);
       void write.then(saved => {
-        // An edit that found no entry to rewrite has nothing left to edit;
-        // a new entry the mark could not take stays in its field.
-        if ((saved || entry.editing) && this._entry?.id === entry.id) {
+        // A new entry the mark could not take stays in its field.
+        if (saved && this._entry?.id === entry.id) {
           this._entry = null;
         }
         this._render();
