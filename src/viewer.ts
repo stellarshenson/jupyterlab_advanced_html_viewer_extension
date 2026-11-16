@@ -906,6 +906,45 @@ export class AdvancedHTMLViewer extends DocumentWidget<
     for (const type of ['pointerup', 'contextmenu']) {
       win.addEventListener(type, () => this._animator?.finish(), true);
     }
+    // The base element makes '#place' the file's address, so a plain click on
+    // a link to a place in the file would load the file in place of this
+    // page; the fragment goes to the frame's own address (DEF-VIEW-69).
+    win.document.addEventListener('click', event => {
+      // closest, not instanceof: the element belongs to the frame's realm.
+      const link = (event.target as Element | null)?.closest?.(
+        'a[href], area[href]'
+      );
+      const href = link?.getAttribute('href') ?? '';
+      const frame = link?.getAttribute('target') ?? '';
+      if (
+        !link ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey ||
+        link.hasAttribute('download') ||
+        (frame !== '' && frame !== '_self') ||
+        !href.includes('#')
+      ) {
+        return;
+      }
+      try {
+        const base = new URL(win.document.baseURI);
+        const target = new URL(href, base);
+        if (
+          target.origin === base.origin &&
+          target.pathname === base.pathname &&
+          (target.search === '' || target.search === base.search)
+        ) {
+          event.preventDefault();
+          win.location.hash = target.hash;
+        }
+      } catch {
+        // An address that does not parse is left to the browser.
+      }
+    });
     // Fit before the scroll is restored: the saved offsets are in the
     // previous page's units, and the same frame width gives the same ratio,
     // so the restore lands where the reader was.

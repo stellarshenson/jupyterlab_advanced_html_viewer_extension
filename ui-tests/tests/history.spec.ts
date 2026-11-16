@@ -9,6 +9,7 @@ import {
   labFixtures,
   mark,
   openViewer,
+  painted,
   pointAt,
   settings,
   trust,
@@ -201,6 +202,40 @@ test('DEF-VIEW-51 a trusted page that sets its hash before load takes a mark', a
   expect(fileText(file)).toMatch(
     /<!-- mark:[0-9a-f-]{36} note colour=yellow -->sets its hash<!-- \/mark:/
   );
+});
+
+test('DEF-VIEW-69 a link to a place in the file keeps the page in the viewer', async ({
+  page,
+  tmpPath
+}) => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const file = fixture(tmpPath, 'in-page');
+  writeFile(
+    file,
+    `<!DOCTYPE html>
+<html><head><title>Report</title></head><body>
+<p><a href="#findings">Go to the findings</a></p>
+<p>The <!-- mark:${id} note colour=yellow -->marked passage<!-- /mark:${id} --> is painted.</p>
+<div style="height: 3000px"></div>
+<h2 id="findings">Findings</h2>
+</body></html>
+`
+  );
+  await openViewer(page, file, 'Go to the findings');
+  await expect
+    .poll(() => painted(page, 'jp-ahv-yellow'))
+    .toEqual(['marked passage']);
+
+  const at = await pointAt(page, 'Go to the findings');
+  await page.mouse.click(at.x, at.y);
+  await expect
+    .poll(() => inFrame<string>(page, 'return win.location.hash;'))
+    .toBe('#findings');
+  await expect
+    .poll(() => inFrame<number>(page, 'return win.scrollY;'))
+    .toBeGreaterThan(0);
+  expect(await painted(page, 'jp-ahv-yellow')).toEqual(['marked passage']);
+  expect(await viewerHoldsPage(page)).toBe(true);
 });
 
 test('ACC-VIEW-95 an untrusted page carries no page script', async ({
