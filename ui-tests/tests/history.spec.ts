@@ -236,6 +236,15 @@ test('DEF-VIEW-69 a link to a place in the file keeps the page in the viewer', a
     .toBeGreaterThan(0);
   expect(await painted(page, 'jp-ahv-yellow')).toEqual(['marked passage']);
   expect(await viewerHoldsPage(page)).toBe(true);
+
+  // The same link again, from the top: the fragment is unchanged.
+  await inFrame(page, 'win.scrollTo(0, 0);');
+  await expect.poll(() => inFrame<number>(page, 'return win.scrollY;')).toBe(0);
+  await page.mouse.click(at.x, at.y);
+  await expect
+    .poll(() => inFrame<number>(page, 'return win.scrollY;'))
+    .toBeGreaterThan(0);
+  expect(await viewerHoldsPage(page)).toBe(true);
 });
 
 test('ACC-VIEW-95 an untrusted page carries no page script', async ({

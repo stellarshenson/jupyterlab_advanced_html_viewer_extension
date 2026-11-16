@@ -189,6 +189,14 @@ The sandboxed frame, trust, refresh and rendering the page again
   - log: 2026-11-16T06:07:00Z @kj added
   - log: 2026-11-16T06:21:15Z @kj closed
   - log: 2026-11-16T06:21:36Z @kj edited evidence "Galata history.spec.ts DEF-VIEW-69 failed on the 1.0.79 build (frame left for the file's address), passes at 1.0.80; build_test.py 2026-11-16: Jest 407, pytest 41, Galata 157; a plain click on such a link sets the frame's own fragment, src/viewer.ts _onLoad" -> "Galata history.spec.ts case 'a link to a place in the file keeps the page in the viewer' failed on the 1.0.79 build, passes at 1.0.80; build_test.py 2026-11-16: Jest 407, pytest 41, Galata 157; src/viewer.ts _onLoad"
+- [x] `DEF-VIEW-70-SAME-FRAGMENT` **Second click on an in-page link does nothing** - MEDIUM; a click on a link to a place in the file whose fragment equals the frame's present fragment scrolls nowhere: the same link clicked twice, and href="#" on a page with no fragment; `src/viewer.ts`
+  - evidence: Galata history.spec.ts case 'a link to a place in the file keeps the page in the viewer' clicks the link, scrolls to 0, clicks again and reads scrollY above 0; build_test.py 2026-11-16 at 1.0.81: Jest 407, pytest 41, Galata 157; src/viewer.ts _onLoad
+  - related: DEF-VIEW-69-PAGE-LINK - the listener this defect is in
+  - repro: open a file with <a href="#findings">, click the link, scroll to the top, click it again
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-11-16T06:52:13Z @kj the click listener of DEF-VIEW-69-PAGE-LINK cancels the click and sets location.hash, and the hash setter does nothing for an unchanged fragment
+  - log: 2026-11-16T06:52:13Z @kj added
+  - log: 2026-11-16T07:05:23Z @kj closed
 
 ## Where text comes from `ORIGIN`
 

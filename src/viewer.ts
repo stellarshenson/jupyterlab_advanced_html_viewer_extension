@@ -939,7 +939,11 @@ export class AdvancedHTMLViewer extends DocumentWidget<
           (target.search === '' || target.search === base.search)
         ) {
           event.preventDefault();
-          win.location.hash = target.hash;
+          // assign, not the hash setter, which does nothing for an unchanged
+          // fragment: a second click on the same link scrolls again.
+          win.location.assign(
+            win.location.href.split('#')[0] + (target.hash || '#')
+          );
         }
       } catch {
         // An address that does not parse is left to the browser.
