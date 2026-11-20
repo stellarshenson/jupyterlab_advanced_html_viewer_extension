@@ -197,6 +197,29 @@ The sandboxed frame, trust, refresh and rendering the page again
   - root-cause: 2026-11-16T06:52:13Z @kj the click listener of DEF-VIEW-69-PAGE-LINK cancels the click and sets location.hash, and the hash setter does nothing for an unchanged fragment
   - log: 2026-11-16T06:52:13Z @kj added
   - log: 2026-11-16T07:05:23Z @kj closed
+- [x] `DEF-VIEW-71-FIT-LOST` **Page fitted too wide when its content is centred and wider than the frame** - MAJOR; page not width fitted after full screen, a tab switch back, or first load on centred content; a page wider than the frame shows a horizontal scrollbar with content cut at the side; cause: centred content makes html.scrollWidth report only the right half of the overflow; `src/fit.ts`
+  - evidence: pre-fix repro zoom 0.612271 with scrollWidth 739 vs clientWidth 694 and scrollLeft 45 on the deck and triage-master.html; after the fix the centred-deck Galata cases pass and the full suite is 161 passed, 0 failed on the 1.0.83 build
+  - overrides: ACC-VIEW-93
+  - overrides: ACC-VIEW-94
+  - root-cause: 2026-11-19T13:53:09Z @kj fitPage scales by clientWidth/scrollWidth; for content centred and wider than the frame, html.scrollWidth reports only the right-hand half of the overflow, so the first write and the one correction undershoot and the page stays about 6.5 percent too wide; the tab switch and full screen neither cause nor repair it
+  - repro: open a 1280 px page in a narrower frame, enter and leave full screen, or open another tab and return; the page shows a horizontal scrollbar
+  - test-tags: FUNCTIONAL
+  - log: 2026-11-19T13:33:59Z @kj added
+  - log: 2026-11-19T13:53:23Z @kj reproduced by workflow fit-tab: a 1280 px centred slide in a 694 px frame keeps zoom 0.612271, scrollWidth 739, scrollLeft 45; a left-aligned control fits; tab switch and full screen leave the sheet unchanged, so the reported triggers are a misattribution
+  - log: 2026-11-19T14:02:38Z @kj edited text "page not width fitted after leaving full screen or after switching to another tab and back; a page wider than the frame shows a horizontal scrollbar and content cut at the side; cause under investigation; `src/fit.ts`, `src/viewer.ts`" -> "page not width fitted after full screen, a tab switch back, or first load on centred content; a page wider than the frame shows a horizontal scrollbar with content cut at the side; cause: centred content makes html.scrollWidth report only the right half of the overflow; `src/fit.ts`"
+  - log: 2026-11-19T14:38:34Z @kj edited title "Page not fitted to the frame width after full screen or a tab switch" -> "Page fitted too wide when its content is centred and wider than the frame"
+  - log: 2026-11-19T14:38:34Z @kj retitled at close: the reported full-screen and tab-switch triggers were a misattribution; the fit is short at load on centred fixed-width content
+  - log: 2026-11-19T14:38:34Z @kj closed: fixed: fitPage solves the exact zoom from two scroll-width samples and restores the previous rule on a zero measurement
+  - log: 2026-11-20T11:39:08Z @kj review loop round 4 SHIP; final tree green: Jest 412, pytest 41, auth gate, Galata 162 passed, lint clean on 1.0.87
+- [x] `DEF-VIEW-73-HIDDEN-LOAD` **A page first loaded behind another tab is never fitted when its tab comes to the front** - MAJOR; page first loaded while its tab is behind another is never width-fitted when the tab comes to the front; a workspace-restored wide page keeps a horizontal scrollbar; fitPage has no trigger for the viewport settling; `src/viewer.ts`
+  - evidence: the DEF-VIEW-73-HIDDEN-LOAD Galata case passes (zoom 0.542212, scrollWidth 694 = clientWidth, scrollLeft 0 after activation); the whole fit spec 9 of 9, Jest 4 suites 29 tests, lint clean on the 1.0.85 build
+  - root-cause: 2026-11-19T15:41:33Z @kj at activation the first ResizeObserver callback fits against the pre-show layout, where scrollWidth equals clientWidth, so the fit is emptied; the shown layout arrives one frame later and nothing refits
+  - repro: restore a workspace with a wide HTML page behind the active tab, then switch to it: the page shows a horizontal scrollbar; or open a wide page with activate false and bring it to the front
+  - test-tags: FUNCTIONAL
+  - log: 2026-11-19T15:05:19Z @kj added
+  - log: 2026-11-19T15:41:34Z @kj closed: fixed: onAfterShow fits the page two animation frames after the show
+  - log: 2026-11-19T15:41:40Z @kj edited evidence "the DEF-VIEW-73 Galata case passes (zoom 0.542212, scrollWidth 694 = clientWidth, scrollLeft 0 after activation); the whole fit spec 9 of 9, Jest 4 suites 29 tests, lint clean on the 1.0.85 build" -> "the DEF-VIEW-73-HIDDEN-LOAD Galata case passes (zoom 0.542212, scrollWidth 694 = clientWidth, scrollLeft 0 after activation); the whole fit spec 9 of 9, Jest 4 suites 29 tests, lint clean on the 1.0.85 build"
+  - log: 2026-11-19T15:41:40Z @kj overrides ACC-VIEW-119-TAB-FIT removed - removed: the criterion holds again; the DEF-VIEW-73 case proves the page opened behind another tab is fitted when shown
 
 ## Where text comes from `ORIGIN`
 
@@ -487,6 +510,12 @@ Defects of the Galata suite itself
   - root-cause: 2026-10-25T00:02:12Z @kj Playwright's default poll timeout is 5 s; the suite's own slow polls name 15 s, so the default is the outlier on a shared workstation
   - log: 2026-10-25T00:02:12Z @kj added
   - log: 2026-10-25T00:19:36Z @kj closed
+- [x] `DEF-TEST-72-FILES-ROUTE` **Galata fixture resources 404 on /files/ under the platform files handler** - MEDIUM; the Galata server is rooted at ui-tests while the platform's jupyter_lab_config.py pins c.ContentsManager.files_handler_params to ~/workspace, so every fixture resource under /files/ answers 404; ACC-VIEW-6 fails; /api/contents answers 200; fix: the test config sets files_handler_params to the suite directory; `ui-tests/jupyter_server_test_config.py`
+  - evidence: ACC-VIEW-6 1 passed alone (9.2 s) and the full Galata suite 161 passed, 0 failed on the 1.0.83 build, port 54039; logs tmp/workflows/files-route/logs/
+  - repro: run the Galata suite on this workstation: ACC-VIEW-6's img stays empty and the server logs 404 GET /files/<fixture>/pixel.png while /api/contents for the same path answers 200
+  - test-tags: FUNCTIONAL
+  - log: 2026-11-19T14:22:16Z @kj added
+  - log: 2026-11-19T14:38:37Z @kj closed: fixed: the test config roots files_handler_params at the suite directory
 
 ## Agent skill `AGENT`
 

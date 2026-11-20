@@ -2,6 +2,18 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.88] - 2026-11-20
+
+### Changed
+
+- The integration suite serves its own fixtures through the `/files/` route, so the suite is green on a workstation whose lab configuration roots that route elsewhere
+- The Makefile matches canonical 1.49; publish installs the built wheel before it runs the tests
+
+### Fixed
+
+- A page whose content is centred and wider than the frame, as a slide deck or a centred document is, is scaled exactly to the frame's width: the fit solves the zoom from two measured scroll widths instead of assuming the scroll width grows with the content, so no horizontal scrollbar remains at load, after full screen, or after a resize
+- A page whose viewer first loaded while its tab was behind another is fitted to the frame's width when the tab comes to the front, two animation frames after the show
+
 ## [1.0.82] - 2026-11-16
 
 ### Changed

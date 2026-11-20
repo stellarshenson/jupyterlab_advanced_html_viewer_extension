@@ -42,6 +42,7 @@ import {
   ToolbarButtonComponent,
   UseSignal
 } from '@jupyterlab/ui-components';
+import { Message } from '@lumino/messaging';
 import { ISignal, Signal } from '@lumino/signaling';
 import { Widget } from '@lumino/widgets';
 import * as React from 'react';
@@ -337,6 +338,28 @@ export class AdvancedHTMLViewer extends DocumentWidget<
       value === Widget.HiddenMode.Display
         ? Widget.HiddenMode.ContentVisibility
         : value;
+  }
+
+  /**
+   * Fit the page when the viewer comes to the front. A page whose tab was
+   * behind another takes its first layout a frame after the show, and the
+   * frame's ResizeObserver measures the layout from before it, finds no
+   * overflow and clears the fit (DEF-VIEW-73). The fit is made in the second
+   * frame, the first whose layout it can measure.
+   */
+  protected onAfterShow(msg: Message): void {
+    super.onAfterShow(msg);
+    const page = this._page;
+    if (!page) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!this.isDisposed && this._page === page) {
+          fitPage(page.window);
+        }
+      });
+    });
   }
 
   /** The frame element. */

@@ -162,18 +162,26 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - log: 2026-10-19T12:40:35Z @kj added
   - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
 - [x] `ACC-VIEW-93` **Page fits the frame width before trust** - MEDIUM; a page wider than the frame is shown scaled down to the frame's width with no horizontal scrollbar while the page is untrusted, as well as after trust; a page that fits the frame keeps its own size
-  - evidence: Galata tests/fit.spec.ts:151 and :172 green: a 2000 px page fits the 694 px frame untrusted and trusted; responsive and narrow pages keep their size; mutation check failed when the ratio was disabled; full suite 103 of 103
+  - overridden-by: DEF-VIEW-71-FIT-LOST
+  - evidence: Galata fit.spec.ts:151 and :172 green: a 2000 px page fits the 694 px frame untrusted and trusted; responsive and narrow pages keep their size; the centred 1280 px deck case added by DEF-VIEW-71-FIT-LOST green; full suite 161 passed on 1.0.83
   - test: open a page with a 2000 px fixed layout in a narrow frame, assert no horizontal scrollbar and the right edge inside the frame, untrusted and trusted
   - test-tags: FUNCTIONAL
   - mechanism: 2026-10-19T12:41:36Z @kj the viewer measures the page's own width against the frame's width and applies one ratio inside the same-origin frame, so the fit needs no scripts and no trust
   - log: 2026-10-19T12:41:36Z @kj added
   - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
+  - log: 2026-11-19T14:38:42Z @kj edited evidence "Galata tests/fit.spec.ts:151 and :172 green: a 2000 px page fits the 694 px frame untrusted and trusted; responsive and narrow pages keep their size; mutation check failed when the ratio was disabled; full suite 103 of 103" -> "Galata fit.spec.ts:151 and :172 green: a 2000 px page fits the 694 px frame untrusted and trusted; responsive and narrow pages keep their size; the centred 1280 px deck case added by DEF-VIEW-71 green; full suite 161 passed on 1.0.83"
+  - log: 2026-11-19T14:38:43Z @kj re-proven after DEF-VIEW-71: the centred-deck case passes and the full suite is 161 passed on 1.0.83
+  - log: 2026-11-19T14:38:58Z @kj edited evidence "Galata fit.spec.ts:151 and :172 green: a 2000 px page fits the 694 px frame untrusted and trusted; responsive and narrow pages keep their size; the centred 1280 px deck case added by DEF-VIEW-71 green; full suite 161 passed on 1.0.83" -> "Galata fit.spec.ts:151 and :172 green: a 2000 px page fits the 694 px frame untrusted and trusted; responsive and narrow pages keep their size; the centred 1280 px deck case added by DEF-VIEW-71-FIT-LOST green; full suite 161 passed on 1.0.83"
 - [x] `ACC-VIEW-94` **Edge: frame resized after load** - MEDIUM; the page is scaled again to the new width when the notes panel opens or closes, the window resizes, or the page goes full screen, without a reload
-  - evidence: Galata tests/fit.spec.ts:209 green: rescale on panel toggle, window resize and full screen with no reload; full suite 103 of 103
+  - overridden-by: DEF-VIEW-71-FIT-LOST
+  - evidence: Galata fit.spec.ts:209 green: rescale on panel toggle, window resize and full screen with no reload; the centred deck refits entering and leaving full screen and on a 1 px resize (DEF-VIEW-71-FIT-LOST); full suite 161 passed on 1.0.83
   - test: open a wide page, expand the notes panel, assert the page rescales with no reload
   - test-tags: FUNCTIONAL
   - log: 2026-10-19T12:41:36Z @kj added
   - log: 2026-10-19T13:32:43Z @kj closed: verified on 1.0.53
+  - log: 2026-11-19T14:38:43Z @kj edited evidence "Galata tests/fit.spec.ts:209 green: rescale on panel toggle, window resize and full screen with no reload; full suite 103 of 103" -> "Galata fit.spec.ts:209 green: rescale on panel toggle, window resize and full screen with no reload; the centred deck refits entering and leaving full screen and on a 1 px resize (DEF-VIEW-71); full suite 161 passed on 1.0.83"
+  - log: 2026-11-19T14:38:43Z @kj re-proven after DEF-VIEW-71: the centred deck refits on full screen and on a 1 px resize; full suite 161 passed on 1.0.83
+  - log: 2026-11-19T14:38:58Z @kj edited evidence "Galata fit.spec.ts:209 green: rescale on panel toggle, window resize and full screen with no reload; the centred deck refits entering and leaving full screen and on a 1 px resize (DEF-VIEW-71); full suite 161 passed on 1.0.83" -> "Galata fit.spec.ts:209 green: rescale on panel toggle, window resize and full screen with no reload; the centred deck refits entering and leaving full screen and on a 1 px resize (DEF-VIEW-71-FIT-LOST); full suite 161 passed on 1.0.83"
 - [x] `ACC-VIEW-95-HISTORY` **Trusted page may change its address** - HIGH; setting trustedHistory, on by default: on a trusted page, history.pushState and replaceState to a URL inside the file, a hash or the file's own address, succeed and set location.hash; a URL to another file is refused as before; off keeps the browser's refusal; no sandbox token is added
   - evidence: 1.0.62 full Galata 122/122: history.spec deck hash #2, setting off refuses, live toggle, untrusted page no script; Jest render.spec address mapping; SANDBOX unchanged
   - related: DEF-VIEW-46-HISTORY
@@ -211,6 +219,18 @@ Showing an HTML file in a sandboxed frame, trusting it and rendering it again, a
   - log: 2026-10-23T10:10:55Z @kj added; reason: the criterion names the write-back, the other-value case and the failure case the user's decision implies
   - log: 2026-10-23T10:11:09Z @kj edited test "Galata trust-keep.spec 'DEF-VIEW-49': a rewrite without the settings line gets the same signature back and the box never clears; another lab's value clears the box, file byte for byte as written; a refused write clears the box" -> "Galata trust-keep.spec, the cases for DEF-VIEW-49-KEEP: a rewrite without the settings line gets the same signature back and the box never clears; another lab's value clears the box, file byte for byte as written; a refused write clears the box"; reason: test line named the defect without its code
   - log: 2026-10-24T06:50:23Z @kj closed
+- [x] `ACC-VIEW-119-TAB-FIT` **Edge: page fitted after its tab comes back to the front** - MEDIUM; a page wider than its frame is fitted to the frame's width when its tab comes back to the front after another tab, with no horizontal scrollbar and no reload
+  - evidence: Galata fit.spec ACC-VIEW-119-TAB-FIT case 'a fitted centred deck is still fitted after a tab switch': zoom below 1, scrollWidth at most clientWidth + 0.5, scrollLeft 0, same document and identical adopted sheet text; the DEF-VIEW-73-HIDDEN-LOAD case (page opened behind another tab) passes on 1.0.85; full suite 161 passed on 1.0.83
+  - test: Galata fit.spec: open a 1280 px page in a narrower frame, open a second file, switch back, assert zoom below 1 and scrollWidth at most clientWidth
+  - test-tags: FUNCTIONAL
+  - mechanism: 2026-11-19T13:53:09Z @kj the fit solves the exact zoom from two measured scroll widths at two zooms; a correct sheet survives a tab switch, so no show hook is needed
+  - mechanism: 2026-11-19T13:34:00Z @kj the viewer measures the page again when its tab comes to the front, not only when the frame's box changes
+  - log: 2026-11-19T13:34:00Z @kj added
+  - log: 2026-11-19T14:38:37Z @kj closed: fixed: the fitted centred deck stays fitted after a tab switch
+  - log: 2026-11-19T14:38:58Z @kj edited evidence "Galata fit.spec 'ACC-VIEW-119 a fitted centred deck is still fitted after a tab switch': zoom below 1, scrollWidth at most clientWidth + 0.5, scrollLeft 0, same document and identical adopted sheet text; full suite 161 passed on the 1.0.83 build" -> "Galata fit.spec 'ACC-VIEW-119 a fitted centred deck is still fitted after a tab switch': zoom below 1, scrollWidth at most clientWidth + 0.5, scrollLeft 0, same document and identical adopted sheet text; full suite 161 passed on the 1.0.83 build"
+  - log: 2026-11-19T14:39:06Z @kj edited evidence "Galata fit.spec 'ACC-VIEW-119 a fitted centred deck is still fitted after a tab switch': zoom below 1, scrollWidth at most clientWidth + 0.5, scrollLeft 0, same document and identical adopted sheet text; full suite 161 passed on the 1.0.83 build" -> "Galata fit.spec ACC-VIEW-119-TAB-FIT case 'a fitted centred deck is still fitted after a tab switch': zoom below 1, scrollWidth at most clientWidth + 0.5, scrollLeft 0, same document and identical adopted sheet text; full suite 161 passed on the 1.0.83 build"
+  - log: 2026-11-19T15:41:40Z @kj overridden-by DEF-VIEW-73-HIDDEN-LOAD removed - removed: the criterion holds again; the DEF-VIEW-73 case proves the page opened behind another tab is fitted when shown
+  - log: 2026-11-19T15:41:40Z @kj edited evidence "Galata fit.spec ACC-VIEW-119-TAB-FIT case 'a fitted centred deck is still fitted after a tab switch': zoom below 1, scrollWidth at most clientWidth + 0.5, scrollLeft 0, same document and identical adopted sheet text; full suite 161 passed on the 1.0.83 build" -> "Galata fit.spec ACC-VIEW-119-TAB-FIT case 'a fitted centred deck is still fitted after a tab switch': zoom below 1, scrollWidth at most clientWidth + 0.5, scrollLeft 0, same document and identical adopted sheet text; the DEF-VIEW-73-HIDDEN-LOAD case (page opened behind another tab) passes on 1.0.85; full suite 161 passed on 1.0.83"
 
 ## Following the file `LIVE`
 

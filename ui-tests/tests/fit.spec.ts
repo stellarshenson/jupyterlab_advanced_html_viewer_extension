@@ -1,6 +1,8 @@
 import { expect, test } from '@jupyterlab/galata';
+import * as path from 'path';
 
 import {
+  FACTORY,
   FRAME,
   SHOWN,
   fixture,
@@ -38,6 +40,28 @@ ${extra}
 </html>
 `;
 
+/**
+ * A centred deck: 1280 px slides in a column centred in the frame. The slides
+ * are wider than the frame and the column is taller than it, so the page
+ * scrolls vertically and overflows equally on both sides horizontally.
+ */
+const DECK = `<!DOCTYPE html>
+<html>
+<head>
+<style>
+html, body { margin: 0; }
+body { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 0; }
+.slide { width: 1280px; height: 720px; flex: none; background: #e9eef4; }
+</style>
+</head>
+<body>
+<section class="slide">SLIDE ONE</section>
+<section class="slide">SLIDE TWO</section>
+<section class="slide">SLIDE THREE</section>
+</body>
+</html>
+`;
+
 /** The metrics of the page on screen and the box of its frame. */
 interface IMetrics {
   /** The computed zoom of the page's root element. */
@@ -46,7 +70,7 @@ interface IMetrics {
   scrollWidth: number;
   /** The frame's viewport width, the width the page is fitted to. */
   clientWidth: number;
-  /** The width of the wide element, and its right edge in frame units. */
+  /** The width of the fixed-width element, and its right edge in frame units. */
   wideWidth: number;
   right: number;
   /** What the page answers after a scroll to its far right. */
@@ -57,6 +81,8 @@ interface IMetrics {
   sameDocument: boolean;
   /** The frame's outer width in the lab page. */
   frameWidth: number;
+  /** The text of the stylesheets the page document has adopted. */
+  sheet: string;
 }
 
 /** Read the page and its frame in one pass. */
@@ -72,8 +98,20 @@ function metrics(page: any): Promise<IMetrics> {
     html.scrollLeft = 100000;
     const scrollLeft = html.scrollLeft;
     html.scrollLeft = 0;
-    const wide = doc.getElementById('wide');
+    const wide = doc.getElementById('wide') ?? doc.querySelector('.slide');
     const box = wide?.getBoundingClientRect();
+    let sheet = '';
+    try {
+      sheet = Array.from(doc.adoptedStyleSheets)
+        .map(each =>
+          Array.from(each.cssRules)
+            .map(rule => rule.cssText)
+            .join(' ')
+        )
+        .join(' | ');
+    } catch (reason) {
+      sheet = `unreadable: ${String(reason)}`;
+    }
     return {
       zoom: parseFloat(win.getComputedStyle(html).zoom),
       scrollWidth: html.scrollWidth,
@@ -83,7 +121,8 @@ function metrics(page: any): Promise<IMetrics> {
       scrollLeft,
       loads: (win as any).__loads ?? null,
       sameDocument: (doc as any).shownBefore === true,
-      frameWidth: frame.getBoundingClientRect().width
+      frameWidth: frame.getBoundingClientRect().width,
+      sheet
     };
   }, FRAME);
 }
@@ -154,6 +193,34 @@ const fullScreenButton = (page: any) =>
   page.locator(
     `${SHOWN} .jp-Toolbar [title^="Show the page on the whole screen"]`
   );
+
+/** Open a second file in another tab, then bring the first file back in front. */
+async function leaveAndReturn(
+  page: any,
+  file: string,
+  other: string
+): Promise<void> {
+  await openViewer(page, other, 'WIDE PAGE');
+  const label = path.basename(file).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await page
+    .locator('.lm-TabBar-tab', {
+      has: page.locator('.lm-TabBar-tabLabel', {
+        hasText: new RegExp(`^${label}$`)
+      })
+    })
+    .first()
+    .click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (target: string) =>
+          (window as any).jupyterapp.shell.currentWidget?.context?.path ===
+          target,
+        file
+      )
+    )
+    .toBe(true);
+}
 
 test.use({ ...labFixtures, mockSettings: settings() });
 
@@ -343,4 +410,231 @@ test('ACC-VIEW-94 the page rescales on panel toggle, window resize and full scre
   const windowed = await expectFitted(page);
   expect(windowed.loads).toBe(loads);
   expect(windowed.sameDocument).toBe(true);
+});
+
+test('ACC-VIEW-93 a centred 1280 px deck fits the frame untrusted and trusted', async ({
+  page,
+  tmpPath
+}) => {
+  test.setTimeout(120000);
+  const file = fixture(tmpPath, 'fit-deck');
+  writeFile(file, DECK);
+  await openViewer(page, file, 'SLIDE ONE');
+
+  const untrusted = await expectFitted(page);
+  // The frame is narrower than a slide, so the fit is the only reason the
+  // slide's right edge is inside it.
+  expect(untrusted.frameWidth).toBeLessThan(1280);
+  expect(untrusted.scrollWidth).toBeGreaterThan(0);
+
+  await trust(page);
+  await waitForText(page, 'SLIDE ONE');
+  await expectFitted(page);
+});
+
+test('ACC-VIEW-94 a centred deck refits on entering and leaving full screen', async ({
+  page,
+  tmpPath
+}) => {
+  test.setTimeout(180000);
+  const file = fixture(tmpPath, 'fit-deck-fullscreen');
+  writeFile(file, DECK);
+  await openViewer(page, file, 'SLIDE ONE');
+  const before = await expectFitted(page);
+  // A mark on the document that survives only while it is not loaded again.
+  await inFrame(page, 'doc.shownBefore = true; return true;');
+
+  await fullScreenButton(page).click();
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(true);
+  await expectWidth(
+    page,
+    width => width > before.frameWidth,
+    'full screen wider'
+  );
+  const full = await expectFitted(page);
+  expect(full.sameDocument).toBe(true);
+
+  await page.evaluate(() => document.exitFullscreen());
+  await expect.poll(() => frameOnWholeScreen(page)).toBe(false);
+  await expectWidth(
+    page,
+    width => width < full.frameWidth,
+    'back from full screen'
+  );
+  const after = await expectFitted(page);
+  expect(after.sameDocument).toBe(true);
+});
+
+test('ACC-VIEW-119 a fitted centred deck is still fitted after a tab switch', async ({
+  page,
+  tmpPath
+}) => {
+  test.setTimeout(120000);
+  const file = fixture(tmpPath, 'fit-deck-tab');
+  const other = fixture(tmpPath, 'fit-deck-other');
+  writeFile(file, DECK);
+  writeFile(other, wide());
+  await openViewer(page, file, 'SLIDE ONE');
+  const before = await expectFitted(page);
+  await inFrame(page, 'doc.shownBefore = true; return true;');
+
+  await leaveAndReturn(page, file, other);
+  const after = await expectFitted(page);
+  expect(after.sameDocument).toBe(true);
+  expect(after.sheet).toBe(before.sheet);
+});
+
+test('DEF-VIEW-73 a wide page opened behind another tab is fitted when brought to the front', async ({
+  page,
+  tmpPath
+}) => {
+  test.setTimeout(120000);
+  const first = fixture(tmpPath, 'fit-hidden-first');
+  const deck = fixture(tmpPath, 'fit-hidden-deck');
+  writeFile(first, wide());
+  writeFile(deck, DECK);
+  // A first tab is open and in front.
+  await openViewer(page, first, 'WIDE PAGE');
+  const firstId = await page.evaluate((target: string) => {
+    for (const widget of (window as any).jupyterapp.shell.widgets('main')) {
+      if (widget.context?.path === target) {
+        return widget.id;
+      }
+    }
+    throw new Error(`no widget for ${target}`);
+  }, first);
+
+  // Open the deck behind the first tab. `activate: false` is what asks for
+  // that; where the command activates the deck anyway, the first tab is put
+  // back in front before the deck's page loads.
+  const activatedByOpen = await page.evaluate(
+    async ([target, factory, back]: [string, string, string]) => {
+      const app = (window as any).jupyterapp;
+      await app.commands.execute('docmanager:open', {
+        path: target,
+        factory,
+        activate: false
+      });
+      const activated = app.shell.currentWidget?.context?.path === target;
+      // In the same task, so the deck is behind before its page can load.
+      if (activated) {
+        app.shell.activateById(back);
+      }
+      return activated;
+    },
+    [deck, FACTORY, firstId]
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (target: string) =>
+          (window as any).jupyterapp.shell.currentWidget?.context?.path ===
+          target,
+        first
+      )
+    )
+    .toBe(true);
+
+  // The deck's page loads while its tab is behind another.
+  await expect
+    .poll(
+      () =>
+        page.evaluate((selector: string) => {
+          const frames = Array.from(
+            document.querySelectorAll<HTMLIFrameElement>(selector)
+          );
+          return frames.some(frame =>
+            (frame.contentDocument?.body?.innerText ?? '').includes('SLIDE ONE')
+          );
+        }, FRAME),
+      { timeout: 15000 }
+    )
+    .toBe(true);
+
+  // The deck's page state while its tab is still behind, after its load and
+  // fit have run.
+  await page.waitForTimeout(500);
+  const hidden = await page.evaluate((selector: string) => {
+    const frames = Array.from(
+      document.querySelectorAll<HTMLIFrameElement>(selector)
+    );
+    const frame = frames.find(each =>
+      (each.contentDocument?.body?.innerText ?? '').includes('SLIDE ONE')
+    )!;
+    const win = frame.contentWindow!;
+    const doc = frame.contentDocument!;
+    const html = doc.documentElement;
+    html.scrollLeft = 100000;
+    const scrollLeft = html.scrollLeft;
+    html.scrollLeft = 0;
+    const box = doc.querySelector('.slide')?.getBoundingClientRect();
+    return {
+      zoom: parseFloat(win.getComputedStyle(html).zoom),
+      scrollWidth: html.scrollWidth,
+      clientWidth: html.clientWidth,
+      scrollLeft,
+      frameWidth: frame.getBoundingClientRect().width,
+      right: box?.right ?? 0
+    };
+  }, FRAME);
+  console.log(
+    `LOAD73 activateFalse=${!activatedByOpen} zoom=${hidden.zoom} scrollWidth=${hidden.scrollWidth} clientWidth=${hidden.clientWidth} scrollLeft=${hidden.scrollLeft} frameWidth=${hidden.frameWidth} right=${hidden.right}`
+  );
+
+  // Bring the deck's tab to the front.
+  await page.evaluate((target: string) => {
+    const app = (window as any).jupyterapp;
+    for (const widget of app.shell.widgets('main')) {
+      if (widget.context?.path === target) {
+        app.shell.activateById(widget.id);
+        return;
+      }
+    }
+    throw new Error(`no widget for ${target}`);
+  }, deck);
+  // The activation has laid the frame out once the deck's page is the one on
+  // screen with a box.
+  await expect
+    .poll(
+      () =>
+        page.evaluate((selector: string) => {
+          const frames = Array.from(
+            document.querySelectorAll<HTMLIFrameElement>(selector)
+          );
+          const frame = frames.find(each => each.checkVisibility());
+          return (
+            (frame?.contentDocument?.body?.innerText ?? '').includes(
+              'SLIDE ONE'
+            ) && (frame?.getBoundingClientRect().width ?? 0) > 0
+          );
+        }, FRAME),
+      { timeout: 10000 }
+    )
+    .toBe(true);
+  await page.waitForTimeout(1000);
+
+  const after = await metrics(page);
+  console.log(
+    `REPRO73 zoom=${after.zoom} scrollWidth=${after.scrollWidth} clientWidth=${after.clientWidth} scrollLeft=${after.scrollLeft} frameWidth=${after.frameWidth} right=${after.right}`
+  );
+
+  // The invariant of a fitted page: a zoom below 1, no horizontal overflow,
+  // no sideways scroll, and the first slide's right edge within the frame.
+  await expectFitted(page);
+});
+
+test('ACC-VIEW-94 a 1 px viewport resize keeps the centred deck fitted', async ({
+  page,
+  tmpPath
+}) => {
+  test.setTimeout(120000);
+  const file = fixture(tmpPath, 'fit-deck-resize');
+  writeFile(file, DECK);
+  await openViewer(page, file, 'SLIDE ONE');
+  const before = await expectFitted(page);
+
+  const size = page.viewportSize()!;
+  await page.setViewportSize({ width: size.width + 1, height: size.height });
+  await expectWidth(page, width => width !== before.frameWidth, 'frame moved');
+  await expectFitted(page);
 });

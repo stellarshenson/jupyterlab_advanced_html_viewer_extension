@@ -10,6 +10,12 @@
  * The frame is same-origin in both trust states, so the lab page makes the
  * measurement and the write itself.
  *
+ * The scroll width is not proportional to the zoom. Content centred in the
+ * frame overflows by half its width on each side and only the right half is
+ * scrollable, so `scrollWidth = client/2 + contentWidth × zoom/2`; left-aligned
+ * content gives `scrollWidth = contentWidth × zoom`. Both are lines in the
+ * zoom, so two measurements at two zooms solve the fit exactly.
+ *
  * The measurement is made again on every call, and the viewer calls it when
  * the frame loads and whenever the frame's box changes, so the page takes the
  * new width when the notes panel opens or closes, the window resizes, or the
@@ -17,7 +23,7 @@
  *
  * A page that fits keeps its size: the factor never rises above 1. A page
  * that zooms its own root composes with the fit, since the page's own zoom is
- * measured once, before the first write, and multiplied by the factor.
+ * measured once, before the first write, and the solve runs in absolute zoom.
  *
  * Known limit: a page that transforms its root element is left alone. Its
  * scrollWidth is reported in local units while clientWidth is the viewport,
@@ -33,6 +39,37 @@ const ownZooms = new WeakMap<Document, number>();
 
 /** The window of a page, with the stylesheet constructor this module uses. */
 type PageWindow = Window & { CSSStyleSheet: typeof CSSStyleSheet };
+
+/** One measurement of a page: the zoom in force and the scroll width it gave. */
+export interface IFitSample {
+  /** The zoom of the page's root element at the measurement. */
+  zoom: number;
+  /** The page's scroll width at that zoom, in the frame's units. */
+  width: number;
+}
+
+/**
+ * The zoom at which the page's scroll width equals the frame's viewport, from
+ * two samples of the scroll width at two zooms.
+ *
+ * A measurement with no layout, or two samples that give no rising line,
+ * answer null: no fit follows from them, so the caller keeps its rule.
+ */
+export function fitZoom(
+  client: number,
+  first: IFitSample,
+  second: IFitSample
+): number | null {
+  if (client <= 0 || first.width <= 0 || second.width <= 0) {
+    return null;
+  }
+  const slope = (second.width - first.width) / (second.zoom - first.zoom);
+  if (!(slope > 0)) {
+    return null;
+  }
+  const zoom = (client - (first.width - slope * first.zoom)) / slope;
+  return zoom > 0 ? zoom : null;
+}
 
 /**
  * Scale a page to the width of its frame, or leave it at its own size when it
@@ -56,27 +93,58 @@ export function fitPage(win: Window): void {
     ownZooms.set(doc, own);
   }
   const sheet = sheetOf(win as PageWindow);
-  // Measure with the viewer's factor at 1, the page's own zoom still in
-  // force: the ratio is the page's natural width against the viewport.
+  // A failed measurement must not clear a fit already in force.
+  const previous = sheet.cssRules.length > 0 ? sheet.cssRules[0].cssText : '';
+  // Measure at the page's own zoom, then at a smaller one: two points on the
+  // line the page's scroll width follows in the zoom (see fitZoom).
   sheet.replaceSync(`:root { zoom: ${own} !important; }`);
   const client = html.clientWidth;
-  const width = html.scrollWidth;
-  if (client <= 0 || width <= 0) {
+  const first: IFitSample = { zoom: own, width: html.scrollWidth };
+  if (client <= 0 || first.width <= 0) {
+    sheet.replaceSync(previous);
     return;
   }
-  const factor = Math.min(1, client / width);
-  if (factor === 1) {
+  if (first.width <= client) {
     sheet.replaceSync('');
     return;
   }
-  sheet.replaceSync(`:root { zoom: ${own * factor} !important; }`);
-  // One correction: a scrollbar the fitted page still takes narrows the
-  // viewport after the write, so measure once more and close the gap.
-  const zoomedClient = html.clientWidth;
-  const zoomedWidth = html.scrollWidth;
-  if (zoomedWidth > zoomedClient) {
-    const corrected = own * factor * (zoomedClient / zoomedWidth);
-    sheet.replaceSync(`:root { zoom: ${corrected} !important; }`);
+  const probe = own * (client / first.width);
+  sheet.replaceSync(`:root { zoom: ${probe} !important; }`);
+  const second: IFitSample = { zoom: probe, width: html.scrollWidth };
+  let solved = fitZoom(html.clientWidth, first, second);
+  if (solved === null) {
+    // Samples at or below the fit all report the client width, so the probe
+    // can tie with the first; the third, above the page's own zoom, rises.
+    const above = own * 1.25;
+    sheet.replaceSync(`:root { zoom: ${above} !important; }`);
+    const third: IFitSample = { zoom: above, width: html.scrollWidth };
+    solved = fitZoom(html.clientWidth, first, third);
+    if (solved === null) {
+      sheet.replaceSync(previous);
+      return;
+    }
+  }
+  const fitted = Math.min(own, solved);
+  sheet.replaceSync(`:root { zoom: ${fitted} !important; }`);
+  // The scroll width is an integer, so the fitted write can land up to a pixel
+  // over; this closes the measured overflow, a scrollbar change included. The
+  // local chord's two samples are integer scroll widths, so its slope is
+  // overstated and half a pixel of slack lands the write one pixel over, so
+  // its target is a whole pixel under.
+  const clientAfter = html.clientWidth;
+  const widthAfter = html.scrollWidth;
+  if (widthAfter > clientAfter + 0.5) {
+    // The far pair's slope is a blend when the widest element changes between
+    // its samples; the local chord is solved first, and the far pair answers
+    // when the two local samples report the same integer.
+    const corrected =
+      fitZoom(clientAfter - 1, second, { zoom: fitted, width: widthAfter }) ??
+      fitZoom(2 * clientAfter - widthAfter, first, second);
+    if (corrected !== null) {
+      sheet.replaceSync(
+        `:root { zoom: ${Math.min(own, corrected)} !important; }`
+      );
+    }
   }
 }
 

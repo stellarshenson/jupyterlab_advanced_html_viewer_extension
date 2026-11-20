@@ -10,6 +10,12 @@ from jupyterlab.galata import configure_jupyter_server
 
 configure_jupyter_server(c)
 
+# The platform jupyter_lab_config.py roots /files/ at ~/workspace, which is not
+# this server's root; the suite serves its own tree so a fixture's relative
+# resources load (ACC-VIEW-6).
+_HERE = os.path.dirname(os.path.abspath(__file__))
+c.ContentsManager.files_handler_params = {"path": _HERE}
+
 # `or`, not a get() default: an exported-but-empty JUPYTER_TEST_PORT would
 # raise here while Playwright waited happily on the default port.
 c.ServerApp.port = int(os.environ.get("JUPYTER_TEST_PORT") or "8888")
